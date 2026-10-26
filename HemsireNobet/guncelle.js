@@ -12,7 +12,7 @@ const YEREL = /^http:\/\/127\.0\.0\.1:\d+$/;
 function indir(url, ilerle, yon) {
   return new Promise((ok, no) => {
     const lib = url.startsWith("http://") ? http : https;
-    const r = lib.get(url, { headers: { "User-Agent": "HemsireNobet", Accept: "application/octet-stream" } }, res => {
+    const r = lib.get(url, { headers: { "User-Agent": "HemsireNobet", Accept: url.startsWith("https://api.github.com/") ? "application/vnd.github+json" : "application/octet-stream" } }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && (yon || 0) < 5) {
         res.resume();
         return ok(indir(new URL(res.headers.location, url).href, ilerle, (yon || 0) + 1));
