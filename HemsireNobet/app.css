@@ -30,6 +30,7 @@ body { overflow: hidden; background: transparent; font-variant-numeric: tabular-
 .basbar-surum:empty { display: none; }
 .gnc-ort { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); }
 .gnc-ort[hidden] { display: none; }
+.gnc-eylem .dgm[hidden] { display: none; }
 .gnc-kutu { width: min(30rem, calc(100% - 2 * var(--tk-sp-3))); display: flex; flex-direction: column; gap: var(--tk-sp-3); padding: var(--tk-sp-4); border-radius: var(--tk-r); background: var(--tk-surface); border: var(--tk-border-w) solid var(--tk-border); }
 .gnc-baslik { margin: 0; font-size: var(--tk-fs-3); line-height: var(--tk-lh-heading); color: var(--tk-text); }
 .gnc-yazi { margin: 0; font-size: var(--tk-fs-2); line-height: var(--tk-lh-body); color: var(--tk-text); white-space: pre-wrap; }

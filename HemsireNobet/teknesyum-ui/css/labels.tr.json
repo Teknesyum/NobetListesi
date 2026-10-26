@@ -11,5 +11,8 @@
   "sync.synced": "Eşitlendi",
   "sync.offline": "Çevrimdışı",
   "sync.now": "Şimdi eşitle",
-  "app.title": "Uygulama adı"
+  "app.title": "Uygulama adı",
+  "update.check": "Güncellemeleri denetle",
+  "update.current": "Güncel",
+  "update.confirmSetting": "Güncellemeden önce sor"
 }

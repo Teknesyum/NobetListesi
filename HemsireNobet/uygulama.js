@@ -378,6 +378,16 @@ SEKMELER.forEach((s, i) => {
   const panel = $("#gncPanel");
   let mesgul = false;
   G.surum().then(s => { dugme.textContent = "v" + s; });
+  let onay = false;
+  try { onay = JSON.parse(W.veri.oku("ayar") || "{}").onayIste === true; } catch (e) {}
+  const onayCiz = () => {
+    $("#btnOnay").setAttribute("aria-pressed", String(onay));
+    $("#btnOnay").textContent = (ET["update.confirmSetting"] || "Güncellemeden önce sor") + ": " + (onay ? "Açık" : "Kapalı");
+  };
+  onayCiz();
+  $("#btnOnay").onclick = () => { onay = !onay; W.veri.yaz("ayar", JSON.stringify({ onayIste: onay })); onayCiz(); };
+  dugme.setAttribute("aria-label", ET["update.check"] || "update.check");
+  dugme.title = ET["update.check"] || "";
   const kapat = () => { panel.hidden = true; $("#gncIz").hidden = true; $("#gncEvet").disabled = false; $("#gncSonra").disabled = false; };
   G.ilerle(p => {
     $("#gncDolgu").style.width = Math.round(p.yuzde * 100) + "%";
@@ -398,10 +408,17 @@ SEKMELER.forEach((s, i) => {
     mesgul = false;
     dugme.disabled = false;
     if (!r.ok) return sessiz ? null : toast("Güncelleme denetlenemedi: " + r.hata, "danger");
-    if (!r.yeni) return sessiz ? null : toast("Güncel (v" + dugme.textContent.replace(/^v/, "") + ")", "success");
+    if (!r.yeni) return sessiz ? null : toast((ET["update.current"] || "Güncel") + " (v" + dugme.textContent.replace(/^v/, "") + ")", "success");
     $("#gncBaslik").textContent = "Yeni sürüm hazır: v" + r.surum;
     $("#gncYazi").textContent = r.notlar || "Yeni sürüm indirilip kurulacak, program yeniden başlayacak.";
     panel.hidden = false;
+    if (!onay) {
+      $("#gncEvet").hidden = true;
+      $("#gncSonra").hidden = true;
+      return uygula();
+    }
+    $("#gncEvet").hidden = false;
+    $("#gncSonra").hidden = false;
     $("#gncEvet").focus();
   }
   dugme.onclick = () => denetle(false);

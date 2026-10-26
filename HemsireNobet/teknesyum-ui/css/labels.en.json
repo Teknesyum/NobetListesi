@@ -11,5 +11,8 @@
   "sync.synced": "Synced",
   "sync.offline": "Offline",
   "sync.now": "Sync now",
-  "app.title": "Application name"
+  "app.title": "Application name",
+  "update.check": "Check for updates",
+  "update.current": "Up to date",
+  "update.confirmSetting": "Ask before updating"
 }
