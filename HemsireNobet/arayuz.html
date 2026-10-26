@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<link rel="stylesheet" href="teknesyum-ui/css/theme.css">
+<link rel="stylesheet" href="teknesyum-ui/css/a11y.css">
+<link rel="stylesheet" href="teknesyum-ui/css/forms.css">
+<link rel="stylesheet" href="teknesyum-ui/css/states.css">
+<link rel="stylesheet" href="teknesyum-ui/ustcubuk/titlebar.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="cerceve" id="cerceve">
+
+<header class="tk-titlebar" id="basbar">
+  <div class="tk-titlebar__brand">
+    <span class="tk-titlebar__name" id="basbarAd"></span>
+    <button type="button" class="basbar-surum" id="basbarSurum" aria-label="update.check" title="Güncellemeleri denetle"></button>
+  </div>
+  <div class="tk-titlebar__tabs"></div>
+  <div class="tk-titlebar__tools">
+    <button type="button" class="tk-titlebar__chip tk-titlebar__chip--brand" id="imza"></button>
+    <button type="button" class="tk-titlebar__chip tk-titlebar__chip--support" id="destek"></button>
+    <div class="tk-titlebar__window" id="pGrup">
+      <button type="button" class="tk-titlebar__control" id="pKucult" aria-label="Küçült" title="Küçült"><span class="tk-titlebar__minimize" aria-hidden="true"></span></button>
+      <button type="button" class="tk-titlebar__control" id="pBuyult" aria-label="Büyüt" title="Büyüt"><span class="tk-titlebar__maximize" aria-hidden="true"></span></button>
+      <button type="button" class="tk-titlebar__control tk-titlebar__control--close" id="pKapat" aria-label="Kapat" title="Kapat"><span class="tk-titlebar__close" aria-hidden="true"></span></button>
+    </div>
+  </div>
+</header>
+
+<div class="kabuk">
+  <div class="ust">
+    <div class="aypanel" role="group" aria-label="Ay Seçimi">
+      <button type="button" class="dgm dgm-kare" id="yilGeri" aria-label="Önceki Yıl">‹</button>
+      <span class="yil-yazi" id="yilYazi"></span>
+      <button type="button" class="dgm dgm-kare" id="yilIleri" aria-label="Sonraki Yıl">›</button>
+      <div class="ay-sira">
+        <button type="button" class="dgm ay-dgm" aria-label="Ocak">Oca</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Şubat">Şub</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Mart">Mar</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Nisan">Nis</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Mayıs">May</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Haziran">Haz</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Temmuz">Tem</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Ağustos">Ağu</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Eylül">Eyl</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Ekim">Eki</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Kasım">Kas</button>
+        <button type="button" class="dgm ay-dgm" aria-label="Aralık">Ara</button>
+      </div>
+      <button type="button" class="dgm dgm-birincil" id="btnSonraki">Sonraki Ayı Hazırla</button>
+    </div>
+    <label class="alan" for="kisi"><span>Günlük Kişi</span><input class="tk-input alan-sayi" type="number" id="kisi" min="1" max="12"></label>
+    <label class="alan" for="altSay"><span>Alternatif</span><input class="tk-input alan-sayi" type="number" id="altSay" min="2" max="500" value="200"></label>
+    <button type="button" class="dgm" id="btnZor" aria-pressed="false">İstekler Zorunlu: Kapalı</button>
+    <span class="bosluk"></span>
+    <span class="durum" id="durum" role="status"></span>
+    <button type="button" class="dgm dgm-birincil" id="btnUret">Listeyi Oluştur</button>
+    <button type="button" class="dgm" id="btnYeni">Başka Bir Tane</button>
+    <button type="button" class="dgm" id="btnKopya">Excel'e Kopyala</button>
+    <button type="button" class="dgm" id="btnCsv">CSV Kaydet</button>
+    <button type="button" class="dgm" id="btnYazdir">Yazdır</button>
+    <div class="ilerleme" id="ilerleme" hidden>
+      <div class="ilerleme-iz" id="ilerlemeIz" role="progressbar" aria-label="Liste Hazırlanıyor" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="ilerleme-dolgu" id="ilerlemeDolgu"></div></div>
+      <span class="ilerleme-yazi" id="ilerlemeYazi"></span>
+    </div>
+  </div>
+
+  <main class="govde">
+    <section class="pnl liste-pnl">
+      <h1 class="baski-baslik" id="baslik"></h1>
+      <table class="liste" id="liste"></table>
+    </section>
+    <section class="pnl yan-pnl">
+      <div class="sekmeler" role="tablist" aria-label="Yan Panel">
+        <button type="button" role="tab" class="sekme" id="sk-ozet" aria-selected="true" aria-controls="p-ozet">Kişi Özeti</button>
+        <button type="button" role="tab" class="sekme" id="sk-sorun" aria-selected="false" aria-controls="p-sorun" tabindex="-1">Sorunlar</button>
+        <button type="button" role="tab" class="sekme" id="sk-kadro" aria-selected="false" aria-controls="p-kadro" tabindex="-1">Kadro Ve İstekler</button>
+        <button type="button" role="tab" class="sekme" id="sk-alt" aria-selected="false" aria-controls="p-alt" tabindex="-1">Alternatifler</button>
+      </div>
+      <div class="yan-icerik" id="p-ozet" role="tabpanel" aria-labelledby="sk-ozet"></div>
+      <div class="yan-icerik" id="p-sorun" role="tabpanel" aria-labelledby="sk-sorun" hidden></div>
+      <div class="yan-icerik" id="p-kadro" role="tabpanel" aria-labelledby="sk-kadro" hidden></div>
+      <div class="yan-icerik" id="p-alt" role="tabpanel" aria-labelledby="sk-alt" hidden></div>
+    </section>
+  </main>
+</div>
+</div>
+<div class="gnc-ort" id="gncPanel" role="dialog" aria-modal="true" aria-labelledby="gncBaslik" hidden>
+  <div class="gnc-kutu">
+    <h2 class="gnc-baslik" id="gncBaslik">Yeni sürüm hazır</h2>
+    <p class="gnc-yazi" id="gncYazi"></p>
+    <div class="ilerleme-iz" id="gncIz" hidden><div class="ilerleme-dolgu" id="gncDolgu"></div></div>
+    <div class="gnc-eylem">
+      <button type="button" class="dgm dgm-birincil" id="gncEvet">Güncelle</button>
+      <button type="button" class="dgm" id="gncSonra">Sonra</button>
+    </div>
+  </div>
+</div>
+<div class="tk-toast-stack" id="toast" role="status" aria-live="polite"></div>
+<script src="veri.js"></script>
+<script src="motor.js"></script>
+<script>
+{
+const W = window.pencere;
+Promise.all([W.veri.hazir(), W.etiket()]).then(([, et]) => {
+  window.ETIKET = et || {};
+  const s = document.createElement("script");
+  s.src = "uygulama.js";
+  document.body.append(s);
+});
+}
+</script>
+</body>
+</html>

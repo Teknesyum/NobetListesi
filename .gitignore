@@ -1,0 +1,5 @@
+dist/
+veri/
+electron/
+node_modules/
+dist-portable/
