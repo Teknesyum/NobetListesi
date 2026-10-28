@@ -50,6 +50,39 @@ const kopya = x => JSON.parse(JSON.stringify(x));
 
 function oku(k) { try { return JSON.parse(W.veri.oku(k)); } catch (e) { return null; } }
 
+function goc(k) {
+  if (k.nobet === undefined) k.nobet = k.min !== undefined ? k.min : 7;
+  if (k.odeme === undefined) k.odeme = k.max !== undefined ? k.max : 11;
+  delete k.min;
+  delete k.max;
+  return k;
+}
+
+function gecmisHesapla(y, a) {
+  const r = {};
+  let py = y, pa = a;
+  for (let i = 0; i < 36; i++) {
+    pa--;
+    if (pa < 1) { pa = 12; py--; }
+    const pk = oku(ayAnahtar(py, pa));
+    if (!pk || !pk.liste || !pk.kisiler) continue;
+    const ay = { yil: py, ay: pa, tatil: pk.tatil || [] };
+    const G = MOTOR.gunSayisi(ay);
+    for (let d = 1; d <= G; d++) {
+      for (const i2 of pk.liste[d] || []) {
+        const kk = pk.kisiler[i2];
+        if (!kk) continue;
+        const x = r[kk.ad] || (r[kk.ad] = { n: 0, p: 0, g: [0, 0, 0, 0, 0] });
+        const q = MOTOR.grup(ay, d);
+        x.n++;
+        x.p += MOTOR.AGIRLIK[q];
+        x.g[q]++;
+      }
+    }
+  }
+  return Object.keys(r).length ? r : null;
+}
+
 function yukle(y, a) {
   const kayit = oku(ayAnahtar(y, a));
   const kadro = oku("kadro");
@@ -58,8 +91,10 @@ function yukle(y, a) {
   if (kayit && kayit.kisiler) kisiler = kayit.kisiler;
   else if (y === ILK.yil && a === ILK.ay) kisiler = taban.kisiler;
   else kisiler = kopya((kadro && kadro.kisiler) || taban.kisiler).map(k => Object.assign(k, { izin: [], istemiyor: [], istiyor: [] }));
+  kisiler.forEach(goc);
   const zor = kayit && kayit.zorunlu !== undefined ? kayit.zorunlu : kadro && kadro.zorunlu !== undefined ? kadro.zorunlu : false;
-  V = { yil: y, ay: a, kisi: (kayit && kayit.kisi) || (kadro && kadro.kisi) || taban.kisi, tatil: [], kisiler, zorunlu: !!zor, onceki: [] };
+  V = { yil: y, ay: a, kisi: (kayit && kayit.kisi) || (kadro && kadro.kisi) || taban.kisi, tatil: [], kisiler, zorunlu: !!zor, onceki: [], gecmis: null };
+  V.gecmis = gecmisHesapla(y, a);
   const py = a === 1 ? y - 1 : y;
   const pa = a === 1 ? 12 : a - 1;
   const pk = oku(ayAnahtar(py, pa));
@@ -148,8 +183,8 @@ function ozetCiz() {
     const gunler = [];
     for (let d = 1; d <= G; d++) if ((L[d] || []).includes(i)) gunler.push(d);
     const n = el("td", { className: "n" });
-    n.dataset.kotu = gunler.length < k.min || gunler.length > k.max ? "1" : "0";
-    n.append(String(gunler.length), el("small", { textContent: k.min + "–" + k.max }));
+    n.dataset.kotu = "0";
+    n.append(String(gunler.length), el("small", { textContent: "/ " + k.nobet }));
     const tr = el("tr");
     tr.append(el("td", { textContent: k.ad }), n, el("td", { className: "g", textContent: gunler.join(", ") }));
     t.append(tr);
@@ -181,23 +216,145 @@ function kadroCiz() {
   p.replaceChildren();
   const t = el("table", { className: "kadro" });
   const b = el("tr");
-  ["Ad", "Alt", "Üst", "İzin", "İstemiyor", "İstiyor"].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
+  ["Ad", "Nöbet", "Ödeme"].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
   t.append(b);
   V.kisiler.forEach(k => {
     const tr = el("tr", {});
     tr.append(el("td", { textContent: k.ad }));
-    [["min", "Alt Sınır"], ["max", "Üst Sınır"], ["izin", "İzin Günleri"], ["istemiyor", "İstemediği Günler"], ["istiyor", "İstediği Günler"]].forEach(([a, e]) => {
-      const sayi = a === "min" || a === "max";
-      const i = el("input", { className: "tk-input" + (sayi ? " dar" : ""), type: sayi ? "number" : "text", value: sayi ? k[a] : yaz(k[a]) });
+    [["nobet", "Nöbet Sayısı"], ["odeme", "Ödeme Puanı"]].forEach(([a, e]) => {
+      const i = el("input", { className: "tk-input dar", type: "number", min: "0", value: k[a] });
       i.setAttribute("aria-label", k.ad + " " + e);
-      i.onchange = () => { k[a] = sayi ? +i.value : gunOku(i.value); sakla(); ciz(); };
+      i.onchange = () => { k[a] = Math.max(0, +i.value || 0); sakla(); ciz(); };
       tr.append(el("td", {}));
       tr.lastChild.append(i);
     });
     t.append(tr);
   });
   p.append(t);
-  p.append(el("p", { className: "yardim", textContent: "Günler virgülle yazılır, aralık için tire kullanılır: 3, 7-9, 21. İzin kesin boş demektir; istemiyor ve istiyor mümkün olduğunca uygulanır." }));
+  p.append(el("p", { className: "yardim", textContent: "Nöbet, kişinin bu ayki nöbet sayısı payıdır (6/10 yazan kâğıtta 6). Ödeme, ödeme puanı payıdır (10). Cuma 2, Cumartesi 3, Pazar ve tatil 2, diğer günler 1 puan. İzin, istemiyor ve istiyor günleri İstekler sekmesinden tıklayarak seçilir." }));
+}
+
+const GUN2 = ["Pz", "Pt", "Sa", "Ça", "Pe", "Cu", "Ct"];
+const DURUM_AD = ["Boş", "İstiyor", "İstemiyor", "İzin"];
+const DURUM_IM = ["", "✓", "✕", "İ"];
+
+function istekDurum(k, d) {
+  if (k.izin.includes(d)) return 3;
+  if (k.istemiyor.includes(d)) return 2;
+  if (k.istiyor.includes(d)) return 1;
+  return 0;
+}
+
+function istekYaz(k, d, q) {
+  for (const a of ["izin", "istemiyor", "istiyor"]) k[a] = k[a].filter(x => x !== d);
+  if (q === 1) k.istiyor.push(d);
+  else if (q === 2) k.istemiyor.push(d);
+  else if (q === 3) k.izin.push(d);
+  for (const a of ["izin", "istemiyor", "istiyor"]) k[a].sort((x, y) => x - y);
+}
+
+function istekCiz() {
+  const p = $("#p-istek");
+  p.replaceChildren();
+  const G = MOTOR.gunSayisi(V);
+  const lej = el("div", { className: "lejant" });
+  [[0, "Boş"], [1, "İstiyor"], [2, "İstemiyor"], [3, "İzin (kesin boş)"]].forEach(([q, m]) => {
+    const s = el("span", {});
+    const hc = el("span", { className: "hc", textContent: DURUM_IM[q] || "·" });
+    hc.dataset.d = String(q);
+    s.append(hc, m);
+    lej.append(s);
+  });
+  p.append(lej);
+  const t = el("table", { className: "istek" });
+  const cg = el("colgroup");
+  cg.append(el("col", { className: "c-ad" }));
+  for (let d = 1; d <= G; d++) cg.append(el("col"));
+  cg.append(el("col", { className: "c-top" }));
+  t.append(cg);
+  const b = el("tr");
+  b.append(el("th", { scope: "col", textContent: "Ad" }));
+  for (let d = 1; d <= G; d++) {
+    const w = MOTOR.haftaGunu(V, d);
+    const th = el("th", { scope: "col", textContent: String(d) });
+    th.append(el("small", { textContent: GUN2[w] }));
+    th.title = tarihMetin(d) + " " + MOTOR.GUN[w];
+    if (w === 0 || w === 6) th.dataset.hs = "1";
+    b.append(th);
+  }
+  b.append(el("th", { scope: "col", textContent: "Toplam" }));
+  t.append(b);
+  V.kisiler.forEach(k => {
+    const tr = el("tr", {});
+    tr.append(el("td", { textContent: k.ad }));
+    const top = el("td", { className: "top" });
+    const topYaz = () => { top.textContent = k.istiyor.length + " ✓ " + k.istemiyor.length + " ✕ " + k.izin.length + " İ"; };
+    for (let d = 1; d <= G; d++) {
+      const w = MOTOR.haftaGunu(V, d);
+      const td = el("td", {});
+      if (w === 0 || w === 6) td.dataset.hs = "1";
+      const h = el("button", { type: "button", className: "hc" });
+      const guncelle = () => {
+        const q = istekDurum(k, d);
+        h.dataset.d = String(q);
+        h.textContent = DURUM_IM[q];
+        h.setAttribute("aria-label", k.ad + " " + tarihMetin(d) + ": " + DURUM_AD[q]);
+      };
+      guncelle();
+      h.onclick = () => {
+        istekYaz(k, d, (istekDurum(k, d) + 1) % 4);
+        guncelle();
+        topYaz();
+        sakla();
+        $("#istekIpucu").hidden = false;
+      };
+      td.append(h);
+      tr.append(td);
+    }
+    topYaz();
+    tr.append(top);
+    t.append(tr);
+  });
+  p.append(t);
+  p.append(el("p", { className: "yardim", textContent: "Bir kutuya her tıklamada sırayla: istiyor, istemiyor, izin, boş. En az istekte bulunanın isteği önceliklidir. Nöbet ertesi ve arka arkaya nöbet her zaman yasaktır." }));
+  const ip = el("p", { className: "yardim", id: "istekIpucu", textContent: "Değişiklik kaydedildi. Listeye yansıması için Listeyi Oluştur düğmesine bas." });
+  ip.hidden = true;
+  p.append(ip);
+}
+
+function analizCiz() {
+  const p = $("#p-analiz");
+  p.replaceChildren();
+  if (!L) { p.append(el("p", { className: "yardim", textContent: "Liste henüz oluşturulmadı." })); return; }
+  const an = MOTOR.analiz(V, L);
+  const t = el("table", { className: "analiz" });
+  const b = el("tr");
+  ["Ad", "Nöbet", "Ödeme", "Per", "Cum", "Cmt", "Paz", "İstek", "İstemez", "Geçmiş"].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
+  t.append(b);
+  const f1 = x => (Math.round(x * 10) / 10).toString();
+  const isr = x => (x > 0 ? "+" : "") + f1(x);
+  an.forEach(a => {
+    const tr = el("tr");
+    tr.append(el("td", { textContent: a.ad }));
+    const hucre = (ana, alt, kotu) => {
+      const td = el("td", {});
+      td.dataset.kotu = kotu ? "1" : "0";
+      td.append(String(ana), el("small", { textContent: alt }));
+      return td;
+    };
+    tr.append(hucre(a.nobet, "hedef " + f1(a.nobetHedef), Math.abs(a.nobet - a.nobetHedef) >= 1.5));
+    tr.append(hucre(a.odeme, "hedef " + f1(a.odemeHedef), Math.abs(a.odeme - a.odemeHedef) >= 2.5));
+    [1, 2, 3, 4].forEach(q => tr.append(hucre(a.grup[q], "~" + f1(a.grupBeklenen[q]), Math.abs(a.grup[q] - a.grupBeklenen[q]) >= 1.5)));
+    const ist = hucre(a.istekVerilen + "/" + a.istek, a.istek ? (a.istekVerilen === a.istek ? "tamam" : "eksik") : "yok", a.istek > a.istekVerilen);
+    if (a.istek && a.istekVerilen === a.istek) ist.dataset.iyi = "1";
+    tr.append(ist);
+    tr.append(hucre(a.istemezIhlal + "/" + a.istemez, a.ardArda || a.perHs ? "ard arda " + a.ardArda + ", per-hs " + a.perHs : "temiz", a.istemezIhlal > 0 || a.ardArda > 0 || a.perHs > 0));
+    const gc = a.gecmis ? a.fark : null;
+    tr.append(hucre(gc ? isr(gc.n) : "-", gc ? "ödeme " + isr(gc.p) : "kayıt yok", gc && (Math.abs(gc.n) >= 1.5 || Math.abs(gc.p) >= 2.5)));
+    t.append(tr);
+  });
+  p.append(t);
+  p.append(el("p", { className: "yardim", textContent: "Nöbet ve Ödeme: yazılan sayı ve geçmiş aylar düşüldükten sonraki hedef. Per, Cum, Cmt, Paz: o günlerdeki nöbet sayısı ve beklenen. İstek: verilen istek / toplam. İstemez: istemediği güne yazılan / toplam; ard arda ve perşembe sonrası hafta sonu sayıları altta. Geçmiş: önceki ayların toplamında hak edilene göre fazla (+) veya eksik (-); yeni ay bunu dengelemek için kurulur." }));
 }
 
 function altCiz() {
@@ -237,7 +394,7 @@ function ayPanelCiz() {
   $("#btnUret").textContent = CALISIYOR ? "Durdur" : "Listeyi Oluştur";
 }
 
-function ciz() { listeCiz(); ozetCiz(); sorunCiz(); altCiz(); ayPanelCiz(); }
+function ciz() { listeCiz(); ozetCiz(); sorunCiz(); analizCiz(); altCiz(); ayPanelCiz(); }
 
 function ustOku() {
   const k = Math.min(12, Math.max(1, +$("#kisi").value || V.kisi));
@@ -280,7 +437,7 @@ function uret() {
       if (o.yeni.maliyet < enC) {
         enC = o.yeni.maliyet;
         L = kopya(o.yeni.liste);
-        listeCiz(); ozetCiz(); sorunCiz();
+        listeCiz(); ozetCiz(); sorunCiz(); analizCiz();
       }
     }
   }, () => benim !== KOSU || !CALISIYOR).then(alt => {
@@ -305,6 +462,7 @@ function git(y, a) {
   if (!L) V.kisi = k || eskiKisi;
   $("#kisi").value = V.kisi;
   kadroCiz();
+  istekCiz();
   if (!L) uret(); else { sakla(); ciz(); }
 }
 
@@ -339,8 +497,10 @@ $("#yilIleri").onclick = () => git(V.yil + 1, V.ay);
 $("#btnSonraki").onclick = () => ayKay(1);
 document.querySelectorAll(".ay-dgm").forEach((b, i) => { b.onclick = () => git(V.yil, i + 1); });
 
-const SEKMELER = ["ozet", "sorun", "kadro", "alt"];
+const SEKMELER = ["ozet", "sorun", "istek", "analiz", "kadro", "alt"];
+const GENIS = ["istek", "analiz"];
 function sekme(ad) {
+  document.querySelector(".govde").dataset.genis = GENIS.includes(ad) ? "1" : "0";
   SEKMELER.forEach(s => {
     const a = s === ad;
     const b = $("#sk-" + s);
@@ -369,6 +529,7 @@ SEKMELER.forEach((s, i) => {
   yukle(y, a);
   $("#kisi").value = V.kisi;
   kadroCiz();
+  istekCiz();
   if (!L) uret(); else ciz();
 })();
 
