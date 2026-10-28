@@ -12,6 +12,7 @@ body { overflow: hidden; background: transparent; font-variant-numeric: tabular-
 }
 .cerceve.buyuk { border-radius: 0; }
 
+.basbar-logo { width: var(--tk-icon-3); height: var(--tk-icon-3); margin-right: var(--tk-sp-2); flex: none; }
 .basbar-surum {
   font: inherit;
   font-size: var(--tk-fs-1);

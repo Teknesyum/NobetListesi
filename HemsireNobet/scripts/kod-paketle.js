@@ -7,7 +7,7 @@ const kok = path.resolve(__dirname, "..");
 const surum = require(path.join(kok, "package.json")).version;
 const dist = path.join(kok, "dist");
 const sahne = path.join(dist, "kod-" + surum);
-const dosyalar = ["cekirdek.js", "guncelle.js", "preload.js", "motor.js", "veri.js", "uygulama.js", "arayuz.html", "app.css", "simge.ico", "package.json"];
+const dosyalar = ["cekirdek.js", "guncelle.js", "preload.js", "motor.js", "veri.js", "uygulama.js", "arayuz.html", "app.css", "simge.ico", "simge.png", "package.json"];
 
 fs.rmSync(sahne, { recursive: true, force: true });
 fs.mkdirSync(sahne, { recursive: true });
