@@ -13,6 +13,34 @@
   const AGIRLIK = [1, 1, 2, 3, 2];
   const GRUP_AD = ["Pzt-Çar", "Per", "Cum", "Cmt", "Paz"];
   const ZOR = 100000;
+  const MONO = 20000;
+
+  function monoCift(sp, pp, sq, pq) {
+    if (sp > sq && pp <= pq) return MONO * (pq - pp + 1);
+    if (sq > sp && pq <= pp) return MONO * (pp - pq + 1);
+    return 0;
+  }
+
+  function monoToplam(sA, pA) {
+    let c = 0;
+    for (let p = 0; p < sA.length; p++) for (let q = p + 1; q < sA.length; q++) c += monoCift(sA[p], pA[p], sA[q], pA[q]);
+    return c;
+  }
+
+  function monoIki(sA, pA, x, y) {
+    let c = monoCift(sA[x], pA[x], sA[y], pA[y]);
+    for (let q = 0; q < sA.length; q++) {
+      if (q !== x && q !== y) c += monoCift(sA[x], pA[x], sA[q], pA[q]) + monoCift(sA[y], pA[y], sA[q], pA[q]);
+    }
+    return c;
+  }
+
+  function sayPay(h, a) {
+    const sA = new Array(h.n).fill(0);
+    const pA = new Array(h.n).fill(0);
+    for (let d = 1; d <= h.G; d++) for (const p of a[d]) { sA[p]++; pA[p] += h.ag[h.grp[d]]; }
+    return { sA, pA };
+  }
   const GW = [1, 3, 3, 4, 3];
 
   function grup(v, g1) {
@@ -180,12 +208,19 @@
     const rel = kural.iliski.filter((r) => r.acik && gi.has(r.a) && gi.has(r.b)).map((r) => [gi.get(r.a), gi.get(r.b), r.tur, r.kesin ? ZOR : yumusak]);
     const gAcik = gAc.length > 0 && uy.some((x) => x.length) && (gLim.some((x) => x !== null) || rel.length > 0);
     const sk = sonraKur(v, G, kural);
+    const pin = Array.from({ length: G + 1 }, () => new Map());
+    for (const x of v.pin || []) {
+      const d = +x[0], y = +x[1];
+      if (d >= 1 && d <= G && y >= 0 && y < v.kisi && adIdx.has(x[2])) pin[d].set(y, adIdx.get(x[2]));
+    }
     return {
+      pin,
       kural, ag, sonra: sk.s, sonraBir: sk.bir, ard: kural.ardArda ? ZOR : 0, wP: kural.odemeModu === "esit" ? 0 : 2,
       n, G, toplam, toplamOde, hedef, odeme, beklenen, yok, istemez, ister, onceki, grp, dev, nTaban, pTaban, agIster, tp, tipBek, wd,
       tumIzin, carpan, oz, gruplar: gAc, uy, gLim, gW, rel, gAcik,
       agIstemez,
-      perHs: zor ? 200 : 80
+      perHs: zor ? 200 : 80,
+      ozW: zor ? 500 : 100
     };
   }
 
@@ -235,7 +270,7 @@
         for (const [e, kesin] of h.sonra[d]) if (gun[e]) c += kesin ? ZOR : h.perHs;
       } else if (ister.has(d)) c += h.agIster[p];
     }
-    if (ws) for (const [w, enAz] of oz) if (ws[w] < enAz) c += 3000 * (enAz - ws[w]);
+    if (ws) for (const [w, enAz] of oz) if (ws[w] < enAz) c += h.ozW * (enAz - ws[w]);
     for (const r of h.sonraBir) if (birBak(r, gun)) c += r.kesin ? ZOR : h.perHs;
     c += 6 * (say - h.hedef[p]) ** 2;
     c += h.wP * (pay - h.odeme[p]) ** 2;
@@ -256,7 +291,8 @@
     for (let d = 1; d <= h.G; d++) for (const p of a[d]) gun[p][d] = true;
     let c = 0;
     for (let p = 0; p < h.n; p++) c += kisiMaliyet(v, h, p, gun[p]);
-    return c + gunMaliyet(h, a);
+    const sp = sayPay(h, a);
+    return c + gunMaliyet(h, a) + monoToplam(sp.sA, sp.pA);
   }
 
   function secenek(v, tohum, itSay) {
@@ -298,6 +334,13 @@
         ertele.sort((x, y) => x[0] - y[0]);
         while (sec.length < v.kisi && ertele.length) sec.push(ertele.shift()[1]);
       } else sec = aday.slice(0, v.kisi).map((x) => x[1]);
+      if (h.pin[d].size) {
+        const sabit = new Set(h.pin[d].values());
+        const kalan = sec.filter((p) => !sabit.has(p)).concat(aday.map((x) => x[1]).filter((p) => !sabit.has(p) && !sec.includes(p)));
+        const yeni = [];
+        for (let y = 0; y < v.kisi; y++) yeni[y] = h.pin[d].has(y) ? h.pin[d].get(y) : kalan.shift();
+        sec = yeni.filter((p) => p !== undefined);
+      }
       a[d] = sec;
       for (const p of sec) {
         say[p]++;
@@ -312,7 +355,8 @@
     for (let p = 0; p < n; p++) kc[p] = kisiMaliyet(v, h, p, gun[p]);
     const gc = [0];
     for (let d = 1; d <= G; d++) gc[d] = gunCost(h, a[d]);
-    let c = kc.reduce((x, y) => x + y, 0) + gc.reduce((x, y) => x + y, 0);
+    const { sA, pA } = sayPay(h, a);
+    let c = kc.reduce((x, y) => x + y, 0) + gc.reduce((x, y) => x + y, 0) + monoToplam(sA, pA);
     let it = 0;
     const yeniGc = (d, yer, p) => {
       if (!h.gAcik) return 0;
@@ -327,6 +371,7 @@
         const d = 1 + Math.floor(R() * G);
         const yer = Math.floor(R() * a[d].length);
         const eski = a[d][yer];
+        if (h.pin[d].has(yer)) continue;
         if (R() < 0.5) {
           const yeni = Math.floor(R() * n);
           if (gun[yeni][d]) continue;
@@ -335,7 +380,12 @@
           const e1 = kisiMaliyet(v, h, eski, gun[eski]);
           const e2 = kisiMaliyet(v, h, yeni, gun[yeni]);
           const g1 = yeniGc(d, yer, yeni);
-          const fark = e1 + e2 - kc[eski] - kc[yeni] + g1 - gc[d];
+          const w = h.ag[h.grp[d]];
+          const m0 = monoIki(sA, pA, eski, yeni);
+          sA[eski]--; pA[eski] -= w; sA[yeni]++; pA[yeni] += w;
+          const m1 = monoIki(sA, pA, eski, yeni);
+          const fark = e1 + e2 - kc[eski] - kc[yeni] + g1 - gc[d] + m1 - m0;
+          if (fark > 0) { sA[eski]++; pA[eski] += w; sA[yeni]--; pA[yeni] -= w; }
           if (fark <= 0) {
             a[d][yer] = yeni;
             gc[d] = g1;
@@ -351,6 +401,7 @@
           if (d2 === d) continue;
           const y2 = Math.floor(R() * a[d2].length);
           const o2 = a[d2][y2];
+          if (h.pin[d2].has(y2)) continue;
           if (gun[o2][d] || gun[eski][d2]) continue;
           gun[eski][d] = false;
           gun[eski][d2] = true;
@@ -360,7 +411,12 @@
           const e2 = kisiMaliyet(v, h, o2, gun[o2]);
           const g1 = yeniGc(d, yer, o2);
           const g2 = yeniGc(d2, y2, eski);
-          const fark = e1 + e2 - kc[eski] - kc[o2] + g1 - gc[d] + g2 - gc[d2];
+          const wf = h.ag[h.grp[d2]] - h.ag[h.grp[d]];
+          let m0 = 0;
+          let m1 = 0;
+          if (wf) { m0 = monoIki(sA, pA, eski, o2); pA[eski] += wf; pA[o2] -= wf; m1 = monoIki(sA, pA, eski, o2); }
+          const fark = e1 + e2 - kc[eski] - kc[o2] + g1 - gc[d] + g2 - gc[d2] + m1 - m0;
+          if (fark > 0 && wf) { pA[eski] -= wf; pA[o2] += wf; }
           if (fark <= 0) {
             a[d][yer] = o2;
             gc[d] = g1;
@@ -468,6 +524,10 @@
         else sorun.push(ad + ": " + d + ". gün istediği halde yazılmadı");
       }
     }
+    const sp = sayPay(h, a);
+    for (let p = 0; p < h.n; p++) for (let q = 0; q < h.n; q++) {
+      if (sp.sA[p] > sp.sA[q] && sp.pA[p] <= sp.pA[q]) sorun.push("Ücret: " + v.kisiler[p].ad + " " + sp.sA[p] + " nöbet / " + sp.pA[p] + " puan, " + v.kisiler[q].ad + " " + sp.sA[q] + " nöbet / " + sp.pA[q] + " puan; fazla nöbet tutan daha fazla puan almalı");
+    }
     for (let d = 1; d <= G; d++) {
       let ister = 0;
       for (let p = 0; p < h.n; p++) if (h.ister[p].has(d)) ister++;
@@ -529,7 +589,115 @@
     });
   }
 
-  const M = { KURAL, kuralNorm, gunCost, TIP_AD, tip, AGIRLIK, GRUP_AD, analiz, GUN, KISA, gunSayisi, haftaGunu, grup, kur, kurAsenkron, rapor, maliyet, hazirla };
+  function gunTablo(h, a) {
+    const gun = Array.from({ length: h.n }, () => new Array(h.G + 8).fill(false));
+    for (let d = 1; d <= h.G; d++) for (const p of a[d]) gun[p][d] = true;
+    return gun;
+  }
+
+  function kisiSorun(h, p, gun) {
+    let kural = 0;
+    let istek = 0;
+    if (h.ard && h.onceki.has(p) && gun[1]) kural++;
+    for (let d = 1; d <= h.G; d++) {
+      if (gun[d]) {
+        if (h.yok[p].has(d)) kural++;
+        if (h.ard && gun[d + 1] && d + 1 <= h.G) kural++;
+        for (const [e] of h.sonra[d]) if (gun[e]) kural++;
+        if (h.istemez[p].has(d)) istek++;
+      } else if (h.ister[p].has(d)) istek++;
+    }
+    for (const r of h.sonraBir) if (birBak(r, gun)) kural++;
+    if (h.oz[p].length) {
+      const ws = [0, 0, 0, 0, 0, 0, 0];
+      for (let d = 1; d <= h.G; d++) if (gun[d]) ws[h.wd[d]]++;
+      for (const [w, enAz] of h.oz[p]) if (ws[w] < enAz) istek += enAz - ws[w];
+    }
+    return { kural, istek };
+  }
+
+  function monoKisi(sA, pA, x) {
+    let c = 0;
+    for (let q = 0; q < sA.length; q++) if (q !== x && monoCift(sA[x], pA[x], sA[q], pA[q])) c++;
+    return c;
+  }
+
+  function degisimRenk(h, a, gun, sp, degis) {
+    const kisiler = [...new Set(degis.map((x) => x[0]))];
+    const once = kisiler.map((p) => kisiSorun(h, p, gun[p]));
+    const mOnce = kisiler.reduce((t, p) => t + monoKisi(sp.sA, sp.pA, p), 0);
+    const gunler = [...new Set(degis.map((x) => x[1]))];
+    const gOnce = gunler.map((d) => gunCost(h, a[d], true));
+    for (const [p, d, var_] of degis) { gun[p][d] = var_; sp.sA[p] += var_ ? 1 : -1; sp.pA[p] += (var_ ? 1 : -1) * h.ag[h.grp[d]]; }
+    const sonra = kisiler.map((p) => kisiSorun(h, p, gun[p]));
+    const mSonra = kisiler.reduce((t, p) => t + monoKisi(sp.sA, sp.pA, p), 0);
+    const yeniA = gunler.map((d) => a[d].filter((p) => !degis.some((x) => x[0] === p && x[1] === d && !x[2])).concat(degis.filter((x) => x[1] === d && x[2]).map((x) => x[0])));
+    const gSonra = yeniA.map((L) => gunCost(h, L, true));
+    for (const [p, d, var_] of degis) { gun[p][d] = !var_; sp.sA[p] -= var_ ? 1 : -1; sp.pA[p] -= (var_ ? 1 : -1) * h.ag[h.grp[d]]; }
+    const neden = [];
+    kisiler.forEach((p, i) => { if (sonra[i].kural > once[i].kural) neden.push(["kural", p]); });
+    if (mSonra > mOnce) neden.push(["ucret", -1]);
+    if (gSonra.some((c, i) => c > gOnce[i])) neden.push(["grup", -1]);
+    const istekBoz = kisiler.filter((p, i) => sonra[i].istek > once[i].istek);
+    istekBoz.forEach((p) => neden.push(["istek", p]));
+    const renk = neden.some((x) => x[0] !== "istek") ? "kirmizi" : istekBoz.length >= 2 ? "turuncu" : istekBoz.length === 1 ? "sari" : "yesil";
+    return { renk, neden, engel: neden.some((x) => x[0] === "kural" || x[0] === "grup") };
+  }
+
+  function takasAnaliz(v, a, d, yer) {
+    const h = hazirla(v);
+    const gun = gunTablo(h, a);
+    const sp = sayPay(h, a);
+    const p = a[d][yer];
+    const sonuc = [];
+    for (let d2 = 1; d2 <= h.G; d2++) {
+      if (d2 === d) continue;
+      a[d2].forEach((q, y2) => {
+        if (q === p) return;
+        if (h.pin[d2].has(y2) || h.pin[d].has(yer)) { sonuc.push({ d: d2, y: y2, renk: "kirmizi", neden: [["pin", -1]], engel: true }); return; }
+        if (gun[p][d2] || gun[q][d]) { sonuc.push({ d: d2, y: y2, renk: "kirmizi", neden: [["ayni", -1]], engel: true }); return; }
+        const r = degisimRenk(h, a, gun, sp, [[p, d, false], [p, d2, true], [q, d2, false], [q, d, true]]);
+        sonuc.push(Object.assign({ d: d2, y: y2 }, r));
+      });
+    }
+    return sonuc;
+  }
+
+  function takasYap(a, d, yer, d2, y2) {
+    const b = a.map((x) => (x ? x.slice() : x));
+    const t = b[d][yer];
+    b[d][yer] = b[d2][y2];
+    b[d2][y2] = t;
+    return b;
+  }
+
+  function verAnaliz(v, a, p, w) {
+    const h = hazirla(v);
+    const gun = gunTablo(h, a);
+    const sp = sayPay(h, a);
+    const sira = { yesil: 0, sari: 1, turuncu: 2, kirmizi: 3 };
+    const sonuc = [];
+    for (let q = 0; q < h.n; q++) {
+      if (q === p) continue;
+      let en = null;
+      for (let d = 1; d <= h.G; d++) {
+        if (h.wd[d] !== w || !gun[p][d] || gun[q][d]) continue;
+        const yer = a[d].indexOf(p);
+        const r = h.pin[d].has(yer) ? { renk: "kirmizi", neden: [["pin", -1]], engel: true } : degisimRenk(h, a, gun, sp, [[p, d, false], [q, d, true]]);
+        if (!en || sira[r.renk] < sira[en.renk]) en = Object.assign({ q, d, y: yer }, r);
+      }
+      if (en) sonuc.push(en);
+    }
+    return sonuc;
+  }
+
+  function verYap(a, d, yer, q) {
+    const b = a.map((x) => (x ? x.slice() : x));
+    b[d][yer] = q;
+    return b;
+  }
+
+  const M = { takasAnaliz, takasYap, verAnaliz, verYap, KURAL, kuralNorm, gunCost, TIP_AD, tip, AGIRLIK, GRUP_AD, analiz, GUN, KISA, gunSayisi, haftaGunu, grup, kur, kurAsenkron, rapor, maliyet, hazirla };
   if (typeof module !== "undefined") module.exports = M;
   else g.MOTOR = M;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -67,6 +67,7 @@ let ESKI = false;
 let OZEL_GORULDU = false;
 let AKTIF = "istek";
 let SOLCTRL = false;
+const haftaIci = d => { const p = d - (MOTOR.haftaGunu(V, d) + 6) % 7; const r = []; for (let x = p; x < p + 5; x++) if (x >= 1 && x <= MOTOR.gunSayisi(V)) r.push(x); return r; };
 
 function goc(k) {
   if (k.nobet === undefined) k.nobet = k.min !== undefined ? k.min : 7;
@@ -81,7 +82,7 @@ function goc(k) {
 }
 
 let GA = { aylar: {}, elle: {}, manuel: {}, duzelt: {} };
-let DUZELT_MOD = false;
+let KAPSAM_ACIK = false;
 const HG_GRUP = [0, 0, 0, 1, 2, 3, 4];
 let GD = { aylar: [], detay: {} };
 let GSEC = null;
@@ -293,7 +294,7 @@ function gunSecici(deger, etiket, degis) {
 }
 
 const baslik = (m, seviye) => el(seviye || "h2", { className: "bolum-baslik", textContent: m });
-const yardim = m => el("p", { className: "yardim", textContent: m });
+const yardim = m => { const p = el("p", { className: "yardim", textContent: m }); p.tabIndex = 0; return p; };
 const paragraf = (kap, m) => { kap.replaceChildren(...String(m).split("\n\n").map(x => el("span", { className: "yardim-p", textContent: x }))); };
 const satir = (...x) => { const d = el("div", { className: "satir" }); d.append(...x); return d; };
 const yd = (e, bas, metin) => { e.dataset.yb = bas; e.dataset.ym = metin; return e; };
@@ -480,7 +481,7 @@ function ceteleCiz() {
   p.append(yardim("Her sütun o gün tutulan nöbet sayısı. NÖBET: nöbet / ödeme puanı (Cuma 2, Cumartesi 3, Pazar ve tatil 2). GEÇMİŞ: önceki aylarda hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan."));
   const b = yd(el("button", { type: "button", className: "dgm", textContent: "Geçmiş Verileri İncele" }), "Geçmiş Verileri İncele", "Ayarlar › Geçmiş sekmesini açar: önceki ayların çetelesi, hangi ayların hesaba katıldığı ve elle ay ekleme orada.");
   b.onclick = () => sekme("gecmis");
-  const g = yd(el("button", { type: "button", className: "dgm", textContent: "Genel Çeteleye Git" }), "Genel Çeteleye Git", "Çetele sekmesini açar: birkaç ayın toplamı ve herkesin hakkına göre farkı.");
+  const g = yd(el("button", { type: "button", className: "dgm", textContent: "Genel Çeteleye Git" }), "Genel Çeteleye Git", "Genel Çetele sekmesini açar: birkaç ayın toplamı ve herkesin hakkına göre farkı.");
   g.onclick = () => sekme("cetele");
   p.append(satir(g, b));
   genelCeteleCiz();
@@ -494,14 +495,20 @@ function genelCeteleCiz() {
   const aylar = GD.aylar.slice().reverse();
   const dahil = aylar.filter(m => m.dahil);
   const kapsam = el("div", { className: "ay-cipler" });
-  kapsam.append(el("span", { className: "etiket", textContent: "Kapsanan aylar:" }));
+  const kd = yd(el("button", { type: "button", className: "dgm", id: "btnKapsam", textContent: "Kapsanan Aylar" }), "Kapsanan Aylar", "Genel çeteleye hangi ayların katıldığını gösterir ya da gizler. Ayın üstüne tıklayınca o ay katılır ya da çıkar.");
+  kd.setAttribute("aria-expanded", String(KAPSAM_ACIK));
+  kd.setAttribute("aria-controls", "kapsamCipler");
+  const cipKap = el("div", { className: "cipler", id: "kapsamCipler" });
+  cipKap.hidden = !KAPSAM_ACIK;
+  kd.onclick = () => { KAPSAM_ACIK = !KAPSAM_ACIK; kd.setAttribute("aria-expanded", String(KAPSAM_ACIK)); cipKap.hidden = !KAPSAM_ACIK; };
   aylar.forEach(m => {
     const c = el("button", { type: "button", className: "cip", textContent: ayKisa(m.k) });
     c.setAttribute("aria-pressed", String(m.dahil));
     c.onclick = () => { GA.aylar[m.k] = !m.dahil; gecmisAyarYaz(); yenidenKur(); };
-    kapsam.append(c);
+    cipKap.append(c);
   });
-  kapsam.append(el("span", { className: "cip bu-ay", textContent: AYLAR[V.ay - 1].slice(0, 3) + " " + V.yil + " (bu ay" + (L ? ")" : ", liste yok)") }));
+  cipKap.append(el("span", { className: "cip bu-ay", textContent: AYLAR[V.ay - 1].slice(0, 3) + " " + V.yil + " (bu ay" + (L ? ")" : ", liste yok)") }));
+  kapsam.append(kd, cipKap);
   p.append(kapsam);
   const an = L ? MOTOR.analiz(V, L) : null;
   const h0 = MOTOR.hazirla(V, false);
@@ -530,34 +537,36 @@ function genelCeteleCiz() {
   CETELE_AD.forEach((m, i) => bas.append(el("th", { scope: "col", className: i >= 4 ? "hs" : "", textContent: m })));
   ["NÖBET", "PUAN", "FARK"].forEach(m => bas.append(el("th", { scope: "col", textContent: m })));
   t.append(bas);
-  rows.forEach(r => {
+  rows.forEach((r, i) => {
     const tr = el("tr");
     tr.append(el("td", { className: "ad", textContent: r.ad }));
     r.hg.forEach((x, j) => {
       const td = el("td", { className: j >= 4 ? "hs" : "" });
-      if (DUZELT_MOD) {
-        const inp = el("input", { className: "tk-input ince dar", type: "number", step: "1", value: String(r.dz[j]) });
-        inp.setAttribute("aria-label", r.ad + " " + CETELE_AD[j] + " elle düzeltme");
-        yd(inp, "Elle Düzeltme", "Bu kişinin bu gün sütununa eklenecek sayı. 1 yazarsan bir nöbet eklenir, −1 yazarsan bir nöbet düşülür; 0 düzeltme yok demek. Puan da gün puanına göre değişir.");
-        inp.onchange = () => {
-          const dz = (GA.duzelt[r.ad] || [0, 0, 0, 0, 0, 0, 0]).map(v => +v || 0);
-          dz[j] = Math.round(+inp.value || 0);
-          if (dz.some(v => v)) GA.duzelt[r.ad] = dz; else delete GA.duzelt[r.ad];
-          gecmisAyarYaz();
-          yenidenKur();
-        };
-        td.append(inp);
-      } else {
-        td.textContent = String(x);
-        if (!x) td.classList.add("sifir");
-        if (r.dz[j]) { td.classList.add("elle"); td.title = "Elle düzeltme " + isr(r.dz[j]); }
-      }
+      const inp = el("input", { className: "hucre-giris", type: "number", step: "1", value: String(x) });
+      inp.setAttribute("aria-label", r.ad + " " + CETELE_AD[j]);
+      inp.dataset.i = String(i);
+      inp.dataset.j = String(j);
+      if (!x) td.classList.add("sifir");
+      if (r.dz[j]) { td.classList.add("elle"); td.title = "Elle düzeltme " + isr(r.dz[j]); }
+      yd(inp, "Gün Sayısı", "Bu kişinin bu günde tuttuğu toplam nöbet. Kâğıttaki çeteleyle uyuşmuyorsa sayıyı değiştir; fark elle düzeltme olarak kaydedilir ve bütün aylara eklenir. Düzeltilmiş hücre vurgulu görünür.");
+      inp.onchange = () => {
+        const yeni = Math.round(+inp.value);
+        const dz = (GA.duzelt[r.ad] || [0, 0, 0, 0, 0, 0, 0]).map(v => +v || 0);
+        dz[j] = r.dz[j] + (isFinite(yeni) ? yeni : x) - x;
+        if (dz.some(v => v)) GA.duzelt[r.ad] = dz; else delete GA.duzelt[r.ad];
+        gecmisAyarYaz();
+        const odak = document.activeElement === inp;
+        yenidenKur();
+        if (odak) { const n = $('#p-cetele input[data-i="' + i + '"][data-j="' + j + '"]'); if (n) n.focus(); }
+      };
+      td.append(inp);
       tr.append(td);
     });
-    tr.append(el("td", { className: "np", textContent: r.n + " / " + f1(r.hn) }));
-    tr.append(el("td", { className: "np", textContent: f1(r.p) + " / " + f1(r.hp) }));
+    const tn = el("td", { className: "np", textContent: r.n + " / " + Math.round(r.hn), title: r.n + " / " + f1(r.hn) });
+    const tp = el("td", { className: "np", textContent: f1(r.p) + " / " + Math.round(r.hp), title: f1(r.p) + " / " + f1(r.hp) });
+    tr.append(tn, tp);
     const fn = r.n - r.hn, fp = r.p - r.hp;
-    const fk = el("td", { className: "np fark", textContent: isr(fn) + " / " + isr(fp) });
+    const fk = el("td", { className: "np fark", textContent: isr(Math.round(fn)) + " / " + isr(Math.round(fp)), title: isr(fn) + " / " + isr(fp) });
     fk.dataset.kotu = Math.abs(fn) >= 1 || Math.abs(fp) >= 2.5 ? "1" : "0";
     tr.append(fk);
     t.append(tr);
@@ -566,9 +575,6 @@ function genelCeteleCiz() {
   const kap = el("div", { className: "istek-kap" });
   kap.append(t);
   p.append(kap);
-  const dz = el("button", { type: "button", className: "dgm", id: "btnDuzelt", textContent: DUZELT_MOD ? "Düzeltmeyi Bitir" : "Elle Düzelt" });
-  dz.setAttribute("aria-pressed", String(DUZELT_MOD));
-  dz.onclick = () => { DUZELT_MOD = !DUZELT_MOD; genelCeteleCiz(); };
   const sf = el("button", { type: "button", className: "dgm dgm-sil", id: "btnDuzeltSifir", textContent: "Düzeltmeleri Sıfırla" });
   let onay = null;
   sf.onclick = () => {
@@ -579,11 +585,23 @@ function genelCeteleCiz() {
     gecmisAyarYaz();
     yenidenKur("Elle düzeltmeler silindi.");
   };
-  p.append(satir(dz, sf));
-  p.append(yardim("Genel çetele, kapsanan ayların ve bu ayın toplamıdır. NÖBET ve PUAN: tutulan / hakkı olan. FARK: hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan.\n\nListeyi Oluştur bu farkı kapatmaya çalışır: fazlası olanın bu ayki hedefi düşer, eksiği olanınki artar. Amaç birkaç ay sonunda herkesin farkının sıfıra yakın olmasıdır.\n\nElle Düzelt: kâğıttaki çeteleyle uyuşmayan bir sayı varsa gün sütununa + ya da − yaz. Düzeltme bütün aylara genel olarak eklenir ve liste hazırlanırken hesaba katılır."));
+  p.append(satir(sf));
+  p.append(yardim("Genel çetele, kapsanan ayların ve bu ayın toplamıdır. NÖBET ve PUAN: tutulan / hakkı olan. FARK: hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan.\n\nListeyi Oluştur bu farkı kapatmaya çalışır: fazlası olanın bu ayki hedefi düşer, eksiği olanınki artar. Amaç birkaç ay sonunda herkesin farkının sıfıra yakın olmasıdır.\n\nGün sütunlarındaki sayılar doğrudan değiştirilebilir: kâğıttaki çeteleyle uyuşmayan bir sayı varsa üstüne yaz. Fark bütün aylara genel olarak eklenir ve liste hazırlanırken hesaba katılır."));
+}
+
+function sorunSekme() {
+  const n = L ? MOTOR.rapor(V, L).sorun.length : 0;
+  const b = $("#sk-sorun");
+  const r = $("#sorunRozet");
+  if (!b || !r) return;
+  if (n) b.dataset.sorun = "1"; else delete b.dataset.sorun;
+  r.hidden = !n;
+  r.textContent = String(n);
+  b.setAttribute("aria-label", n ? "Sorunlar, " + n + " sorun" : "Sorunlar");
 }
 
 function durumCiz() {
+  sorunSekme();
   const d = $("#durum");
   if (CALISIYOR) { d.textContent = "Hazırlanıyor"; delete d.dataset.iyi; return; }
   if (!L) { d.textContent = "Liste yok"; delete d.dataset.iyi; return; }
@@ -614,7 +632,7 @@ function analizCiz() {
   p.append(baslik("Analiz"));
   if (!L) { p.append(yardim("Liste henüz oluşturulmadı.")); return; }
   const an = MOTOR.analiz(V, L);
-  const t = el("table", { className: "tablo" });
+  const t = el("table", { className: "tablo analiz" });
   const b = el("tr");
   ["Ad", "Nöbet", "Ödeme"].concat(MOTOR.TIP_AD, ["İstek", "İstemez", "Geçmiş"]).forEach(m => b.append(el("th", { scope: "col", textContent: m })));
   t.append(b);
@@ -641,7 +659,7 @@ function analizCiz() {
     tr.append(hucre(gc ? isr(gc.n) : "—", gc ? "ödeme " + isr(gc.p) : "kayıt yok", gc && (Math.abs(gc.n) >= 1.5 || Math.abs(gc.p) >= 2.5)));
     t.append(tr);
   });
-  const kap = el("div", { className: "istek-kap" });
+  const kap = el("div", { className: "istek-kap analiz-kap" });
   kap.append(t);
   p.append(kap);
   p.append(yardim("Nöbet ve Ödeme: geçmiş aylar düşüldükten sonraki hedef. Pzt…Paz: o günlerdeki nöbet ve beklenen (tatiller Paz sütununda). İstek: verilen / istenen. İstemez: istemediği güne yazılan / toplam. Geçmiş: önceki aylarda hakkından fazla (+) ya da eksik (−)."));
@@ -664,7 +682,7 @@ function kadroCiz() {
       const i = el("input", { className: "tk-input ince dar", type: "number", min: "0", value: k[a] });
       i.setAttribute("aria-label", k.ad + " " + e);
       yd(i, "Nöbet Sayısı", "Bu kişinin bu ay tutacağı nöbet sayısı. Değiştirince toplam aşağıda yeniden hesaplanır; listeyi yenilemek için Listeyi Oluştur'a bas.");
-      i.onchange = () => { k[a] = Math.max(0, +i.value || 0); i.value = k[a]; degisti(); kadroUyari(); };
+      i.onchange = () => { k[a] = Math.max(0, +i.value || 0); i.value = k[a]; degisti(); kadroUyari(); const q = $('#p-istek input[data-k="' + V.kisiler.indexOf(k) + '"]'); if (q) q.value = k[a]; };
       const td = el("td");
       td.append(i);
       tr.append(td);
@@ -731,9 +749,9 @@ function istekCiz() {
     ornek("ornek-ism", "İstemiyor · sağ tık", "✗"),
     ornek("ornek-hs", "Hafta sonu"),
     ornek("ornek-tatil", "Resmi tatil"),
-    el("span", { textContent: "Sol Ctrl + tık: o kişinin aynı haftagünlerinin tamamı · İsme tık: bütün ay ✗" })
+    el("span", { textContent: "Sol Ctrl + tık: o haftanın Pzt–Cum günleri ✗ · İsme tık: bütün ay ✗" })
   );
-  p.append(yd(lej, "Renkler ve İşaretler", "✓ istiyor: bu gün nöbet istiyor. ✗ istemiyor: izinli ya da bu gün nöbet istemiyor. Gri sütunlar hafta sonu, renkli sütunlar resmi tatil.\n\nSol Ctrl basılıyken tıklarsan o kişinin aynı haftagününe düşen bütün günleri birden değişir. İsme tıklarsan bütün ay ✗ olur; bir daha tıklarsan geri alınır."));
+  p.append(yd(lej, "Renkler ve İşaretler", "✓ istiyor: bu gün nöbet istiyor. ✗ istemiyor: izinli ya da bu gün nöbet istemiyor. Gri sütunlar hafta sonu, renkli sütunlar resmi tatil.\n\nSol Ctrl basılıyken o haftanın Pazartesi–Cuma kutuları yanar; tıklarsan hepsi ✗ olur, bir daha tıklarsan kalkar. İsme tıklarsan bütün ay ✗ olur; bir daha tıklarsan geri alınır."));
   const kap = el("div", { className: "istek-kap" });
   const t = el("table", { className: "istek" });
   let vurgu = [];
@@ -749,13 +767,13 @@ function istekCiz() {
     const i = td.cellIndex;
     if (i < 1 || i > G) return;
     td.parentElement.classList.add("sat");
-    const w = MOTOR.haftaGunu(V, i);
+    const hi = SOLCTRL && td.parentElement.querySelector(".hc") ? haftaIci(i) : [];
     for (const tr of t.rows) {
       for (let d = 1; d <= G; d++) {
         const c = tr.cells[d];
         if (!c) continue;
-        if (d === i) { c.classList.add("kol"); vurgu.push(c); }
-        else if (SOLCTRL && MOTOR.haftaGunu(V, d) === w && tr === td.parentElement) { c.classList.add("ctrl"); vurgu.push(c); }
+        if (tr === td.parentElement && hi.includes(d)) { c.classList.add("ctrl"); vurgu.push(c); }
+        else if (d === i) { c.classList.add("kol"); vurgu.push(c); }
       }
     }
   };
@@ -767,6 +785,7 @@ function istekCiz() {
   const cg = el("colgroup");
   cg.append(el("col", { className: "c-ad" }));
   for (let d = 1; d <= G; d++) cg.append(el("col"));
+  cg.append(el("col", { className: "c-nobet" }));
   cg.append(el("col", { className: "c-top" }));
   t.append(cg);
   const b = el("tr");
@@ -785,6 +804,7 @@ function istekCiz() {
     isaret(th, d);
     b.append(th);
   }
+  b.append(yd(el("th", { scope: "col", textContent: "Nöbet" }), "Nöbet", "Kişinin bu ay tutacağı nöbet sayısı. Ayarlar › Kadro'daki sayıyla aynıdır; ikisinden de değiştirilebilir. Değişince Listeyi Oluştur'a bas."));
   b.append(yd(el("th", { scope: "col", textContent: "Toplam" }), "Toplam", "Kişinin bu aydaki ✓ istiyor ve ✗ istemiyor sayısı. En az istekte bulunanın isteği önceliklidir."));
   b.cells[0].dataset.yb = "Ad";
   b.cells[0].dataset.ym = "İsme tıklarsan o kişinin bütün ayı ✗ olur (örneğin tüm ay izinli). Bir daha tıklarsan ✗'ler kalkar.";
@@ -795,6 +815,13 @@ function istekCiz() {
     const ad = el("button", { type: "button", className: "ad-dgm", textContent: k.ad });
     adTd.append(ad);
     tr.append(adTd);
+    const nTd = el("td", { className: "nobet-kutu" });
+    const nIn = el("input", { className: "tk-input ince dar", type: "number", min: "0", value: k.nobet });
+    nIn.setAttribute("aria-label", k.ad + " nöbet sayısı");
+    nIn.dataset.k = String(V.kisiler.indexOf(k));
+    yd(nIn, "Nöbet Sayısı", "Bu kişinin bu ay tutacağı nöbet sayısı. Ayarlar › Kadro'daki sayıyla aynıdır. Değiştirince Listeyi Oluştur'a bas.");
+    nIn.onchange = () => { k.nobet = Math.max(0, Math.round(+nIn.value) || 0); nIn.value = k.nobet; degisti(); kadroCiz(); };
+    nTd.append(nIn);
     const top = yd(el("td", { className: "top" }), "Toplam", "Kişinin bu aydaki ✓ istiyor ve ✗ istemiyor sayısı. En az istekte bulunanın isteği önceliklidir.");
     const hcler = [];
     const tumMu = () => k.istemiyor.length >= G;
@@ -841,8 +868,9 @@ function istekCiz() {
         h.focus();
         const q = istekDurum(k, d) === hedef ? 0 : hedef;
         if (SOLCTRL) {
-          const w = MOTOR.haftaGunu(V, d);
-          for (let x = 1; x <= G; x++) if (MOTOR.haftaGunu(V, x) === w) uygula(x, q);
+          const gunler = haftaIci(d);
+          const qq = gunler.every(x => istekDurum(k, x) === 2) ? 0 : 2;
+          gunler.forEach(x => uygula(x, qq));
           topYaz();
           istekBitti();
           return;
@@ -860,7 +888,7 @@ function istekCiz() {
       tr.append(td);
     }
     topYaz();
-    tr.append(top);
+    tr.append(nTd, top);
     t.append(tr);
   });
   kap.append(t);
@@ -884,7 +912,7 @@ function istekCiz() {
     toast("Bu ayın bütün istekleri sıfırlandı.", "info");
   };
   p.append(satir(ileri, sifir));
-  p.append(yardim("Sol tık ✓ istiyor, sağ tık ✗ istemiyor; aynı tık bir daha basılırsa kutu boşalır. Basılı tutup sürüklersen geçtiğin kutular aynı şekilde boyanır. Sol Ctrl basılıyken tıklarsan o kişinin aynı haftagünlerinin hepsi birden değişir. En az istekte bulunanın isteği önceliklidir."));
+  p.append(yardim("Sol tık ✓ istiyor, sağ tık ✗ istemiyor; aynı tık bir daha basılırsa kutu boşalır. Basılı tutup sürüklersen geçtiğin kutular aynı şekilde boyanır. Sol Ctrl basılıyken tıklarsan o haftanın Pazartesi–Cuma günleri birden ✗ olur. En az istekte bulunanın isteği önceliklidir."));
 }
 
 function ozelCiz() {
@@ -1341,7 +1369,7 @@ function hakkindaCiz() {
   [
     ["r1", "Ne yapar:", "Aylık nöbet listesini kendisi hazırlar. Herkesin nöbet ve ödeme puanı hedefine, isteklerine ve kurallara uyar; yüzlerce alternatif dener, en adilini seçer."],
     ["r2", "Kullanım:", "Üstten ayı seç. 1 İstekler'de ✓ ve ✗ işaretle, 2 Özel Talepler'de en az şu kadar Perşembe gibi talepleri ekle, sonra Listeyi Oluştur'a bas. Liste yalnız bu düğmeyle oluşur."],
-    ["r3", "İstekler:", "Sol tık ✓ istiyor, sağ tık ✗ istemiyor. Basılı sürükleyerek boya. Sol Ctrl + tık o haftagününün tamamını değiştirir. İsme tıklamak bütün ayı ✗ yapar."],
+    ["r3", "İstekler:", "Sol tık ✓ istiyor, sağ tık ✗ istemiyor. Basılı sürükleyerek boya. Sol Ctrl + tık o haftanın Pzt–Cum günlerini ✗ yapar. İsme tıklamak bütün ayı ✗ yapar."],
     ["r1", "Çetele:", "Liste sekmesinde listenin yanında herkesin Pazartesi'den Pazar'a nöbet sayısı, nöbet / puan ve geçmiş farkı görünür."],
     ["r2", "Geçmiş:", "Önceki aylarda fazla ya da eksik tutulan nöbetler bu aya yansır. Ayarlar › Geçmiş'te ayları kat ya da çıkar, kâğıttaki çeteleyi elle gir."],
     ["r3", "Yardım:", "Sağ Ctrl tuşunu basılı tut: farenin altındaki bölümün ne işe yaradığı ve şu anki adımda ne yapman gerektiği küçük bir kutuda çıkar."],
@@ -1382,6 +1410,8 @@ function sekme(ad) {
     const a = s === ad;
     const b = $("#sk-" + s);
     b.hidden = anaBul(s) !== ana;
+    const ok = b.previousElementSibling;
+    if (ok && ok.classList.contains("sekme-ok")) ok.hidden = b.hidden;
     b.setAttribute("aria-selected", String(a));
     b.tabIndex = a ? 0 : -1;
     $("#p-" + s).hidden = !a;
@@ -1391,6 +1421,12 @@ function sekme(ad) {
 }
 
 function sekmeKur() {
+  Object.entries(ANA).forEach(([a, dizi]) => dizi.slice(1).forEach(s => {
+    const o = el("span", { className: "sekme-ok", textContent: "›" });
+    o.setAttribute("aria-hidden", "true");
+    o.dataset.ana = a;
+    $("#sk-" + s).before(o);
+  }));
   ANA_AD.forEach((a, i, dizi) => {
     const b = $("#ana-" + a);
     b.onclick = () => sekme(SON_ALT[a]);
@@ -1430,7 +1466,7 @@ const YARDIM = [
   ["#btnYazdir", "Yazdır", "Yalnız listeyi yazdırır."],
   ["#liste", "Nöbet Listesi", "Ayın her günü ve nöbetçileri. Kutudan elle değiştirebilirsin; uyarı renkli kutu istemediği güne ya da art arda nöbete düşmüş demek. Pembe çerçeve: alternatif önizlemesi."],
   ["table.istek .ad-dgm", "İsim", "Tıkla: bütün ayı ✗ yap. Bir daha tıkla: geri al."],
-  ["table.istek .hc", "İstek Kutusu", "Sol tık ✓, sağ tık ✗, aynı tık boşaltır. Sürükleyerek boya. Sol Ctrl + tık: o haftagününün tamamı."],
+  ["table.istek .hc", "İstek Kutusu", "Sol tık ✓, sağ tık ✗, aynı tık boşaltır. Sürükleyerek boya. Sol Ctrl + tık: o haftanın Pzt–Cum günleri ✗."],
   ["#btnIstekSifir", "Tüm İstekleri Sıfırla", "Bu ayın bütün ✓ ve ✗ işaretlerini siler. Yanlışlıkla silinmesin diye iki kez basılır: ilk basışta düğme onay ister, 3 saniye içinde bir daha basarsan siler."],
   ["#btnOzelSonraki", "Sonraki: Özel Talepler", "İstekleri bitirdiysen bas; Özel Talepler sekmesine geçer."],
   ["#ipucuBar", "Rehber İpucu", "Sağ Ctrl bir kez basılı tutulunca kaybolur. Ayarlar › Genel'de rehber kapalıysa hiç çıkmaz."],
@@ -1443,7 +1479,8 @@ const YARDIM = [
   [".alt-satir", "Alternatif", "1000 üzerinden puan. Üstüne gel: önizle. Tıkla: seç."],
   ["#sk-alt, #p-alt", "4 · Alternatifler", "Denenen listelerin en iyileri."],
   ["#sk-analiz, #p-analiz", "Analiz", "Herkesin hedefe göre nöbet, puan ve gün dağılımı."],
-  ["#sk-sorun, #p-sorun", "Sorunlar", "Kuralı çiğneyen ya da verilemeyen her şey."],
+  ["#sk-sorun, #p-sorun", "Sorunlar", "Kuralı çiğneyen ya da verilemeyen her şey. Sorun varsa sekme turuncu olur ve yanında sayısı görünür."],
+  [".sekme-ok", "Adım Ayracı", "Sekmeler arasındaki ok yalnız sırayı gösterir; tıklanmaz."],
   ["#sk-kadro, #p-kadro", "Kadro", "Herkesin nöbet ve ödeme puanı payı."],
   ["#sk-kural, #p-kural", "Kurallar", "Art arda nöbet, perşembe sonrası boş günler, gün ağırlığı, isteklerin zorunluluğu."],
   ["#sk-ileri, #p-ileri", "İleri Seviye", "Gruplar ve aynı gün olsun / olmasın kuralları."],
@@ -1465,12 +1502,13 @@ const YARDIM = [
   ["#pKapat", "Kapat", "Programı kapatır. Her şey zaten kaydedildi."],
   ["#gncPanel", "Güncelleme", "Yeni sürüm bulunduğunda burada görünür. Güncelle kurar ve yeniden başlatır; Sonra ertelenir."],
   ["#toast", "Bildirim", "Yapılan işin kısa sonucu; birkaç saniye sonra kendiliğinden kaybolur."],
-  ["#btnDuzelt", "Elle Düzelt", "Açınca gün sütunları kutuya döner; kâğıttaki çeteleyle uyuşmayan sayıya + ya da − yaz. Örnek: biri geçen ay kayda geçmemiş bir Cumartesi tuttuysa CTESİ sütununa 1 yaz."],
+  ["table.genel .hucre-giris", "Gün Sayısı", "Kâğıttaki çeteleyle uyuşmayan sayıyı doğrudan değiştir. Örnek: biri kayda geçmemiş bir Cumartesi tuttuysa CTESİ sütunundaki sayıyı 1 artır. Fark elle düzeltme olarak saklanır."],
+  ["#btnKapsam", "Kapsanan Aylar", "Hangi ayların genel çeteleye katıldığını gösterir ya da gizler."],
   ["#btnDuzeltSifir", "Düzeltmeleri Sıfırla", "Bütün elle düzeltmeleri siler. İki kez basılır."],
   ["table.genel", "Genel Çetele", "Kapsanan ayların ve bu ayın toplamı. FARK: hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan; uyarı renkli fark büyük demek."],
   [".ay-cipler .cip", "Kapsanan Ay", "Tıkla: bu ayı genel çeteleye kat ya da çıkar. Katılan aylardaki fark yeni listede dengelenir."],
   ["#sk-cetele, #p-cetele", "Genel Çetele", "Birkaç ayın toplam nöbet ve puanı. Amaç bu tablodaki farkları sıfıra yaklaştırmak."],
-  ["#ana-cetele", "Çetele", "Aylar boyu genel çetele ve elle düzeltme."],
+  ["#ana-cetele", "Genel Çetele", "Aylar boyu genel çetele ve elle düzeltme."],
   ["#ana-hazir", "Liste Hazırlama", "İstekler, özel talepler, liste ve alternatifler."],
   ["#ana-ayar", "Ayarlar", "Kadro, kurallar, geçmiş ve genel ayarlar."],
   ["#basbarSurum", "Sürüm", "Güncellemeleri denetler."],
@@ -1481,7 +1519,7 @@ const YARDIM = [
 ];
 
 const ADIM = {
-  cetele: "Bu bölümde kapsanan ayların toplam çetelesi görülür. FARK sütunu sıfırdan uzaksa Liste Hazırlama › İstekler'e geçip bu ayın listesini oluştur; program farkı kapatmaya çalışır.\n\nKâğıttaki çeteleyle uyuşmayan bir sayı varsa Elle Düzelt'e bas.",
+  cetele: "Bu bölümde kapsanan ayların toplam çetelesi görülür. FARK sütunu sıfırdan uzaksa Liste Hazırlama › İstekler'e geçip bu ayın listesini oluştur; program farkı kapatmaya çalışır.\n\nKâğıttaki çeteleyle uyuşmayan bir sayı varsa tablodaki gün sayısını doğrudan düzelt.",
   istek: "Bu bölümde istekler ve izinler girilir. Nöbet istenen günlere sol tıkla ✓, izinli ya da nöbet istenmeyen günlere sağ tıkla ✗ koy. Bitirince Sonraki: Özel Talepler düğmesine bas.",
   ozel: "Bu bölümde “şu kişilere en az 1 Perşembe” gibi talepler girilir. Gerekmiyorsa boş bırak. Bitirince Listeyi Oluştur'a bas.",
   liste: "Bu bölümde liste ve çetele görülür. Listeyi kontrol et, gerekirse kutudan elle değiştir. Bitirince Yazdır'a ya da Excel'e Kopyala'ya bas.",
