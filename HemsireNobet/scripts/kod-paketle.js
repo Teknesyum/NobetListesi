@@ -7,7 +7,16 @@ const kok = path.resolve(__dirname, "..");
 const surum = require(path.join(kok, "package.json")).version;
 const dist = path.join(kok, "dist");
 const sahne = path.join(dist, "kod-" + surum);
-const dosyalar = ["cekirdek.js", "guncelle.js", "preload.js", "motor.js", "veri.js", "uygulama.js", "arayuz.html", "app.css", "simge.ico", "simge.png", "package.json"];
+const dosyalar = ["cekirdek.js", "guncelle.js", "preload.js", "motor.js", "tatil.js", "veri.js", "uygulama.js", "arayuz.html", "app.css", "simge.ico", "simge.png", "package.json"];
+const paket = require(path.join(kok, "package.json"));
+if (paket.productName !== "Ameliyathane HemşireNöbet") { console.error("productName bozuk: " + paket.productName); process.exit(1); }
+const bozuk = /�|Ã[\u0080-¿]|Å[\u0080-¿]|Ä[\u0080-¿]/;
+for (const f of dosyalar.filter(x => /\.(js|html|css|json)$/.test(x))) {
+  const b = fs.readFileSync(path.join(kok, f));
+  if (b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) { console.error(f + ": BOM var"); process.exit(1); }
+  const m = b.toString("utf8").split("\n").findIndex(x => bozuk.test(x));
+  if (m >= 0) { console.error(f + ":" + (m + 1) + ": bozuk karakter"); process.exit(1); }
+}
 
 fs.rmSync(sahne, { recursive: true, force: true });
 fs.mkdirSync(sahne, { recursive: true });

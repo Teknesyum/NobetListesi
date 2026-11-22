@@ -38,67 +38,70 @@
       <button type="button" class="dgm dgm-kare" id="yilGeri" aria-label="Önceki Yıl">‹</button>
       <span class="yil-yazi" id="yilYazi"></span>
       <button type="button" class="dgm dgm-kare" id="yilIleri" aria-label="Sonraki Yıl">›</button>
-      <div class="ay-sira">
-        <button type="button" class="dgm ay-dgm" aria-label="Ocak">Oca</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Şubat">Şub</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Mart">Mar</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Nisan">Nis</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Mayıs">May</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Haziran">Haz</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Temmuz">Tem</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Ağustos">Ağu</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Eylül">Eyl</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Ekim">Eki</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Kasım">Kas</button>
-        <button type="button" class="dgm ay-dgm" aria-label="Aralık">Ara</button>
-      </div>
-      <button type="button" class="dgm dgm-birincil" id="btnSonraki">Sonraki Ayı Hazırla</button>
+      <div class="ay-sira" id="aySira"></div>
     </div>
-    <div class="alan" role="group" aria-labelledby="kisiAd"><span id="kisiAd">Günlük Kişi</span><span class="sayac"><button type="button" class="dgm dgm-kare" data-hedef="kisi" data-adim="-1" aria-label="Günlük kişiyi azalt">−</button><input class="tk-input alan-sayi" type="number" id="kisi" min="1" max="12" aria-labelledby="kisiAd"><button type="button" class="dgm dgm-kare" data-hedef="kisi" data-adim="1" aria-label="Günlük kişiyi artır">+</button></span></div>
-    <div class="alan" role="group" aria-labelledby="altAd"><span id="altAd">Alternatif</span><span class="sayac"><button type="button" class="dgm dgm-kare" data-hedef="altSay" data-adim="-10" aria-label="Alternatif sayısını azalt">−</button><input class="tk-input alan-sayi" type="number" id="altSay" min="30" max="500" step="10" value="300" aria-labelledby="altAd"><button type="button" class="dgm dgm-kare" data-hedef="altSay" data-adim="10" aria-label="Alternatif sayısını artır">+</button></span></div>
-    <button type="button" class="dgm" id="btnZor" aria-pressed="false">İstekler Zorunlu: Kapalı</button>
-    <button type="button" class="dgm" id="btnOnay" aria-pressed="false">Güncellemeden Önce Sor: Kapalı</button>
     <span class="bosluk"></span>
+    <div class="alan" role="group" aria-labelledby="kisiAd" id="kisiAlan"><span id="kisiAd">Günlük Kişi</span><span class="sayac"><button type="button" class="dgm dgm-kare" id="kisiEksi" aria-label="Günlük kişiyi azalt">−</button><span class="sayac-deger" id="kisi" aria-live="polite"></span><button type="button" class="dgm dgm-kare" id="kisiArti" aria-label="Günlük kişiyi artır">+</button></span></div>
     <span class="durum" id="durum" role="status"></span>
     <button type="button" class="dgm dgm-birincil" id="btnUret">Listeyi Oluştur</button>
-    <button type="button" class="dgm" id="btnYeni">Başka Bir Tane</button>
-    <button type="button" class="dgm" id="btnKopya">Excel'e Kopyala</button>
-    <button type="button" class="dgm" id="btnCsv">CSV Kaydet</button>
-    <button type="button" class="dgm" id="btnYazdir">Yazdır</button>
     <div class="ilerleme" id="ilerleme" hidden>
       <div class="ilerleme-iz" id="ilerlemeIz" role="progressbar" aria-label="Liste Hazırlanıyor" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="ilerleme-dolgu" id="ilerlemeDolgu"></div></div>
       <span class="ilerleme-yazi" id="ilerlemeYazi"></span>
     </div>
   </div>
 
-  <main class="govde">
-    <section class="pnl liste-pnl">
-      <h1 class="baski-baslik" id="baslik"></h1>
-      <p class="oniz-yazi" id="onizYazi" role="status"></p>
-      <table class="liste" id="liste"></table>
-    </section>
-    <section class="pnl yan-pnl">
-      <div class="sekmeler" role="tablist" aria-label="Yan Panel">
-        <button type="button" role="tab" class="sekme" id="sk-ozet" aria-selected="true" aria-controls="p-ozet">Kişi Özeti</button>
-        <button type="button" role="tab" class="sekme" id="sk-sorun" aria-selected="false" aria-controls="p-sorun" tabindex="-1">Sorunlar</button>
-        <button type="button" role="tab" class="sekme" id="sk-istek" aria-selected="false" aria-controls="p-istek" tabindex="-1">İstekler</button>
-        <button type="button" role="tab" class="sekme" id="sk-analiz" aria-selected="false" aria-controls="p-analiz" tabindex="-1">Analiz</button>
-        <button type="button" role="tab" class="sekme" id="sk-gecmis" aria-selected="false" aria-controls="p-gecmis" tabindex="-1">Geçmiş</button>
-        <button type="button" role="tab" class="sekme" id="sk-kural" aria-selected="false" aria-controls="p-kural" tabindex="-1">Kurallar</button>
-        <button type="button" role="tab" class="sekme" id="sk-kadro" aria-selected="false" aria-controls="p-kadro" tabindex="-1">Kadro</button>
-        <button type="button" role="tab" class="sekme" id="sk-alt" aria-selected="false" aria-controls="p-alt" tabindex="-1">Alternatifler</button>
-        <button type="button" role="tab" class="sekme" id="sk-hakkinda" aria-selected="false" aria-controls="p-hakkinda" tabindex="-1">Hakkında</button>
+  <nav class="sekme-sira" aria-label="Bölümler">
+    <div class="ana-sekmeler" role="tablist" aria-label="Ana Bölüm">
+      <button type="button" role="tab" class="sekme ana" id="ana-hazir" data-ana="hazir">Liste Hazırlama</button>
+      <button type="button" role="tab" class="sekme ana" id="ana-ayar" data-ana="ayar">Ayarlar</button>
+    </div>
+    <span class="sekme-ayrac" aria-hidden="true"></span>
+    <div class="alt-sekmeler" role="tablist" aria-label="Alt Bölüm" id="altSekmeler">
+      <button type="button" role="tab" class="sekme" id="sk-istek" data-ana="hazir" aria-controls="p-istek"><span class="adim-no">1</span>İstekler</button>
+      <button type="button" role="tab" class="sekme" id="sk-ozel" data-ana="hazir" aria-controls="p-ozel"><span class="adim-no">2</span>Özel Talepler</button>
+      <button type="button" role="tab" class="sekme" id="sk-liste" data-ana="hazir" aria-controls="p-liste"><span class="adim-no">3</span>Liste</button>
+      <button type="button" role="tab" class="sekme" id="sk-alt" data-ana="hazir" aria-controls="p-alt"><span class="adim-no">4</span>Alternatifler</button>
+      <button type="button" role="tab" class="sekme" id="sk-analiz" data-ana="hazir" aria-controls="p-analiz">Analiz</button>
+      <button type="button" role="tab" class="sekme" id="sk-sorun" data-ana="hazir" aria-controls="p-sorun">Sorunlar</button>
+      <button type="button" role="tab" class="sekme" id="sk-kadro" data-ana="ayar" aria-controls="p-kadro">Kadro</button>
+      <button type="button" role="tab" class="sekme" id="sk-kural" data-ana="ayar" aria-controls="p-kural">Kurallar</button>
+      <button type="button" role="tab" class="sekme" id="sk-ileri" data-ana="ayar" aria-controls="p-ileri">İleri Seviye</button>
+      <button type="button" role="tab" class="sekme" id="sk-gecmis" data-ana="ayar" aria-controls="p-gecmis">Geçmiş</button>
+      <button type="button" role="tab" class="sekme" id="sk-genel" data-ana="ayar" aria-controls="p-genel">Genel</button>
+      <button type="button" role="tab" class="sekme" id="sk-hakkinda" data-ana="ayar" aria-controls="p-hakkinda">Hakkında</button>
+    </div>
+  </nav>
+
+  <div class="rehber-bar" id="rehberBar" role="status" hidden>
+    <span>Liste hazır. Sonraki listelerde rehber yol göstermeye devam etsin mi?</span>
+    <button type="button" class="dgm dgm-birincil" id="rehberDevam">Rehberle Devam Et</button>
+    <button type="button" class="dgm" id="rehberKapat">Rehberi Kapat</button>
+  </div>
+
+  <main class="govde" id="govde" data-mod="tek">
+    <section class="pnl liste-pnl" id="listePnl">
+      <div class="liste-bas">
+        <h1 class="liste-baslik" id="baslik"></h1>
+        <p class="oniz-yazi" id="onizYazi" role="status"></p>
+        <span class="bosluk"></span>
+        <button type="button" class="dgm" id="btnKopya">Excel'e Kopyala</button>
+        <button type="button" class="dgm" id="btnCsv">CSV Kaydet</button>
+        <button type="button" class="dgm" id="btnYazdir">Yazdır</button>
       </div>
-      <div class="yan-icerik" id="p-ozet" role="tabpanel" aria-labelledby="sk-ozet"></div>
-      <div class="yan-icerik" id="p-sorun" role="tabpanel" aria-labelledby="sk-sorun" hidden></div>
-      <div class="yan-icerik" id="p-istek" role="tabpanel" aria-labelledby="sk-istek" hidden></div>
-      <div class="yan-icerik" id="p-analiz" role="tabpanel" aria-labelledby="sk-analiz" hidden></div>
-      <div class="yan-icerik" id="p-gecmis" role="tabpanel" aria-labelledby="sk-gecmis" hidden></div>
-      <div class="yan-icerik" id="p-kural" role="tabpanel" aria-labelledby="sk-kural" hidden></div>
-      <div class="yan-icerik" id="p-kadro" role="tabpanel" aria-labelledby="sk-kadro" hidden></div>
-      <div class="yan-icerik" id="p-alt" role="tabpanel" aria-labelledby="sk-alt" hidden></div>
-      <div class="yan-icerik" id="p-hakkinda" role="tabpanel" aria-labelledby="sk-hakkinda" hidden></div>
+      <div class="liste-kap"><table class="liste" id="liste"></table></div>
     </section>
+    <section class="pnl icerik" id="p-istek" role="tabpanel" aria-labelledby="sk-istek" hidden></section>
+    <section class="pnl icerik" id="p-ozel" role="tabpanel" aria-labelledby="sk-ozel" hidden></section>
+    <section class="pnl icerik yan" id="p-liste" role="tabpanel" aria-labelledby="sk-liste" hidden></section>
+    <section class="pnl icerik yan" id="p-alt" role="tabpanel" aria-labelledby="sk-alt" hidden></section>
+    <section class="pnl icerik" id="p-analiz" role="tabpanel" aria-labelledby="sk-analiz" hidden></section>
+    <section class="pnl icerik" id="p-sorun" role="tabpanel" aria-labelledby="sk-sorun" hidden></section>
+    <section class="pnl icerik" id="p-kadro" role="tabpanel" aria-labelledby="sk-kadro" hidden></section>
+    <section class="pnl icerik" id="p-kural" role="tabpanel" aria-labelledby="sk-kural" hidden></section>
+    <section class="pnl icerik" id="p-ileri" role="tabpanel" aria-labelledby="sk-ileri" hidden></section>
+    <section class="pnl icerik" id="p-gecmis" role="tabpanel" aria-labelledby="sk-gecmis" hidden></section>
+    <section class="pnl icerik" id="p-genel" role="tabpanel" aria-labelledby="sk-genel" hidden></section>
+    <section class="pnl icerik" id="p-hakkinda" role="tabpanel" aria-labelledby="sk-hakkinda" hidden></section>
   </main>
 </div>
 </div>
@@ -113,9 +116,10 @@
     </div>
   </div>
 </div>
-<div class="yardim-balon" id="yardimBalon" role="tooltip" hidden><strong class="yardim-baslik" id="yardimBaslik"></strong><span id="yardimMetin"></span><small class="yardim-not">Kapatmak için Esc ya da herhangi bir yere tıkla.</small></div>
+<div class="yardim-balon" id="yardimBalon" role="tooltip" hidden><strong class="yardim-baslik" id="yardimBaslik"></strong><span id="yardimMetin"></span><span class="yardim-simdi" id="yardimSimdi"></span></div>
 <div class="tk-toast-stack" id="toast" role="status" aria-live="polite"></div>
 <script src="veri.js"></script>
+<script src="tatil.js"></script>
 <script src="motor.js"></script>
 <script>
 {

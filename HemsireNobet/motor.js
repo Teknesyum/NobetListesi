@@ -25,7 +25,7 @@
     return 0;
   }
 
-  const KURAL = { ardArda: true, odemeModu: "puan", sonraBos: [{ gun: 4, bos: [6, 0], kapsam: "hepsi", kesin: false, acik: true }], comez: { acik: true, enFazla: 1, kesin: false } };
+  const KURAL = { ardArda: true, odemeModu: "puan", istekDenge: false, sonraBos: [{ gun: 4, bos: [6, 0], kapsam: "hepsi", kesin: false, acik: true }], comez: { acik: true, enFazla: 1, kesin: false } };
   const TIP_AD = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
   function tip(v, g1) {
@@ -33,9 +33,12 @@
     return q === 0 ? haftaGunu(v, g1) - 1 : q + 2;
   }
 
-  function kuralNorm(k) {
+  const sinir = (x, a, b) => Math.max(a, Math.min(b, x));
+
+  function kuralNorm(k, kisiler) {
     const x = Object.assign({}, KURAL, k || {});
     x.ardArda = x.ardArda !== false;
+    x.istekDenge = !!x.istekDenge;
     x.odemeModu = x.odemeModu === "esit" ? "esit" : "puan";
     x.sonraBos = (Array.isArray(x.sonraBos) ? x.sonraBos : KURAL.sonraBos).map((r) => ({
       gun: ((+r.gun % 7) + 7) % 7, bos: (r.bos || []).map((b) => ((+b % 7) + 7) % 7),
@@ -43,6 +46,19 @@
     }));
     const c = Object.assign({}, KURAL.comez, x.comez || {});
     x.comez = { acik: c.acik !== false, enFazla: Math.max(0, Math.min(12, Math.round(+c.enFazla) || 0)), kesin: !!c.kesin };
+    if (!Array.isArray(x.gruplar)) {
+      const uy = (kisiler || []).filter((q) => q.comez).map((q) => q.ad);
+      x.gruplar = uy.length || !kisiler ? [{ id: "comez", ad: "Çömezler", uyeler: uy, enFazla: x.comez.enFazla, kesin: x.comez.kesin, acik: x.comez.acik }] : [];
+    }
+    x.gruplar = x.gruplar.map((r, i) => ({
+      id: String(r.id || "g" + i), ad: String(r.ad || "Grup " + (i + 1)), uyeler: Array.isArray(r.uyeler) ? r.uyeler.map(String) : [],
+      enFazla: r.enFazla === null || r.enFazla === undefined || r.enFazla === "" ? null : sinir(Math.round(+r.enFazla) || 0, 0, 12),
+      kesin: !!r.kesin, acik: r.acik !== false
+    }));
+    const ids = new Set(x.gruplar.map((r) => r.id));
+    x.iliski = (Array.isArray(x.iliski) ? x.iliski : []).filter((r) => ids.has(r.a) && ids.has(r.b)).map((r) => ({
+      a: r.a, b: r.b, tur: r.tur === "birlikte" ? "birlikte" : "ayri", kesin: !!r.kesin, acik: r.acik !== false
+    }));
     return x;
   }
 
@@ -80,49 +96,98 @@
     const grupSay = [0, 0, 0, 0, 0];
     const grp = [];
     const tp = [];
+    const wd = [];
     const tipSay = [0, 0, 0, 0, 0, 0, 0];
     for (let d = 1; d <= G; d++) {
       grp[d] = grup(v, d);
       tp[d] = tip(v, d);
+      wd[d] = haftaGunu(v, d);
       grupSay[grp[d]] += v.kisi;
       tipSay[tp[d]] += v.kisi;
     }
-    const kural = kuralNorm(v.kural);
+    const kural = kuralNorm(v.kural, v.kisiler);
     const ag = kural.odemeModu === "esit" ? [1, 1, 1, 1, 1] : AGIRLIK;
     const toplamOde = grupSay.reduce((a, c, q) => a + c * ag[q], 0);
-    const sn = v.kisiler.reduce((a, k) => a + nb(k), 0) || 1;
-    const sp = v.kisiler.reduce((a, k) => a + od(k), 0) || 1;
-    const nTaban = v.kisiler.map((k) => (toplam * nb(k)) / sn);
-    const pTaban = v.kisiler.map((k) => (toplamOde * od(k)) / sp);
-    const gTaban = v.kisiler.map((k) => grupSay.map((c) => (c * nb(k)) / sn));
+    const tumIzin = v.kisiler.map((k) => {
+      const s = new Set([...(k.izin || []), ...(k.istemiyor || [])]);
+      for (let d = 1; d <= G; d++) if (!s.has(d)) return false;
+      return true;
+    });
+    const nbE = v.kisiler.map((k, i) => (tumIzin[i] ? 0 : nb(k)));
+    const odE = v.kisiler.map((k, i) => (tumIzin[i] ? 0 : od(k)));
+    const sn = nbE.reduce((a, x) => a + x, 0) || 1;
+    const sp = odE.reduce((a, x) => a + x, 0) || 1;
+    const nTaban = nbE.map((x) => (toplam * x) / sn);
+    const pTaban = odE.map((x) => (toplamOde * x) / sp);
+    const gTaban = nbE.map((x) => grupSay.map((c) => (c * x) / sn));
     const dev = v.kisiler.map(() => ({ n: 0, p: 0, g: [0, 0, 0, 0, 0] }));
     const gec = gecmisKullan === false ? null : v.gecmis;
     if (gec) v.kisiler.forEach((k, i) => {
       const x = gec[k.ad];
-      if (!x) return;
+      if (!x || tumIzin[i]) return;
       dev[i].n = +x.n || 0;
       dev[i].p = kural.odemeModu === "esit" ? +x.n || 0 : +x.p || 0;
       for (let q = 0; q < 5; q++) dev[i].g[q] = (x.g && +x.g[q]) || 0;
     });
-    const hedef = nTaban.map((x, i) => Math.max(0, x - dev[i].n));
-    const odeme = pTaban.map((x, i) => Math.max(0, x - dev[i].p));
-    const beklenen = gTaban.map((a, i) => a.map((x, q) => Math.max(0, x - dev[i].g[q])));
+    const hedef = nTaban.map((x, i) => (tumIzin[i] ? 0 : Math.max(0, x - dev[i].n)));
+    const odeme = pTaban.map((x, i) => (tumIzin[i] ? 0 : Math.max(0, x - dev[i].p)));
+    const beklenen = gTaban.map((a, i) => a.map((x, q) => (tumIzin[i] ? 0 : Math.max(0, x - dev[i].g[q]))));
     const tipBek = beklenen.map((b) => tipSay.map((c, t) => (t < 3 ? (grupSay[0] ? (b[0] * c) / grupSay[0] : 0) : b[t - 2])));
-    const cz = v.kisiler.map((k) => !!k.comez);
-    const czAcik = kural.comez.acik && cz.some(Boolean);
-    const yok = v.kisiler.map((k) => new Set(k.izin));
-    const istemez = v.kisiler.map((k) => new Set(k.istemiyor));
-    const ister = v.kisiler.map((k) => new Set(k.istiyor));
+    const yok = v.kisiler.map((k, i) => {
+      const s = new Set(k.izin || []);
+      if (tumIzin[i]) for (let d = 1; d <= G; d++) s.add(d);
+      return s;
+    });
+    const istemez = v.kisiler.map((k) => new Set(k.istemiyor || []));
+    const ister = v.kisiler.map((k) => new Set(k.istiyor || []));
     const onceki = new Set(v.onceki || []);
     const zor = !!v.zorunlu;
-    const agIster = v.kisiler.map((k) => (zor ? 2000 : 120) / Math.max(1, new Set(k.istiyor).size));
+    const carpan = v.kisiler.map((k) => (kural.istekDenge && v.istekCarpan && v.istekCarpan[k.ad] ? sinir(+v.istekCarpan[k.ad] || 1, 0.8, 1.2) : 1));
+    const agIster = v.kisiler.map((k, i) => (carpan[i] * (zor ? 2000 : 120)) / Math.max(1, ister[i].size));
+    const agIstemez = carpan.map((c) => c * (zor ? 1000 : 400));
+    const adIdx = new Map(v.kisiler.map((k, i) => [k.ad, i]));
+    const oz = v.kisiler.map(() => []);
+    for (const r of v.ozel || []) {
+      if (!r || r.acik === false) continue;
+      const w = ((+r.gun % 7) + 7) % 7;
+      const enAz = sinir(Math.round(+r.enAz) || 0, 0, 6);
+      if (!enAz) continue;
+      for (const ad of r.kisiler || []) if (adIdx.has(ad) && !tumIzin[adIdx.get(ad)]) oz[adIdx.get(ad)].push([w, enAz]);
+    }
+    const gAc = kural.gruplar.filter((r) => r.acik);
+    const gi = new Map(gAc.map((r, i) => [r.id, i]));
+    const uy = v.kisiler.map(() => []);
+    gAc.forEach((r, i) => { for (const ad of r.uyeler) if (adIdx.has(ad)) uy[adIdx.get(ad)].push(i); });
+    const yumusak = zor ? 300 : 150;
+    const gLim = gAc.map((r) => r.enFazla);
+    const gW = gAc.map((r) => (r.kesin ? ZOR : yumusak));
+    const rel = kural.iliski.filter((r) => r.acik && gi.has(r.a) && gi.has(r.b)).map((r) => [gi.get(r.a), gi.get(r.b), r.tur, r.kesin ? ZOR : yumusak]);
+    const gAcik = gAc.length > 0 && uy.some((x) => x.length) && (gLim.some((x) => x !== null) || rel.length > 0);
     return {
       kural, ag, sonra: sonraKur(v, G, kural), ard: kural.ardArda ? ZOR : 0, wP: kural.odemeModu === "esit" ? 0 : 2,
-      n, G, toplam, toplamOde, hedef, odeme, beklenen, yok, istemez, ister, onceki, grp, dev, nTaban, pTaban, agIster, tp, tipBek,
-      cz, czAcik, czLim: kural.comez.enFazla, czW: kural.comez.kesin ? ZOR : zor ? 300 : 150,
-      agIstemez: zor ? 1000 : 400,
+      n, G, toplam, toplamOde, hedef, odeme, beklenen, yok, istemez, ister, onceki, grp, dev, nTaban, pTaban, agIster, tp, tipBek, wd,
+      tumIzin, carpan, oz, gruplar: gAc, uy, gLim, gW, rel, gAcik,
+      agIstemez,
       perHs: zor ? 200 : 80
     };
+  }
+
+  function gunSay(h, L) {
+    const c = new Array(h.gruplar.length).fill(0);
+    for (const p of L) for (const i of h.uy[p]) c[i]++;
+    return c;
+  }
+
+  function gunCost(h, L, sert) {
+    if (!h.gAcik) return 0;
+    const c = gunSay(h, L);
+    let t = 0;
+    for (let i = 0; i < c.length; i++) if (h.gLim[i] !== null && c[i] > h.gLim[i]) t += (c[i] - h.gLim[i]) * h.gW[i];
+    for (const [a, b, tur, w] of h.rel) {
+      if (tur === "ayri") t += a === b ? ((c[a] * (c[a] - 1)) / 2) * w : c[a] * c[b] * w;
+      else if (!sert && a !== b && (c[a] > 0) !== (c[b] > 0)) t += w;
+    }
+    return t;
   }
 
   function kisiMaliyet(v, h, p, gun) {
@@ -135,6 +200,8 @@
     const yok = h.yok[p];
     const istemez = h.istemez[p];
     const ister = h.ister[p];
+    const oz = h.oz[p];
+    const ws = oz.length ? [0, 0, 0, 0, 0, 0, 0] : null;
     if (h.onceki.has(p) && gun[1]) c += h.ard;
     for (let d = 1; d <= G; d++) {
       if (gun[d]) {
@@ -144,12 +211,14 @@
         if (h.tp[d] < 3) ts[h.tp[d]]++;
         pay += h.ag[q];
         if (yok.has(d)) c += ZOR;
-        if (istemez.has(d)) c += h.agIstemez;
+        if (istemez.has(d)) c += h.agIstemez[p];
+        if (ws) ws[h.wd[d]]++;
         if (gun[d + 1]) c += h.ard;
         if (gun[d + 2]) c += 3;
         for (const [e, kesin] of h.sonra[d]) if (gun[e]) c += kesin ? ZOR : h.perHs;
       } else if (ister.has(d)) c += h.agIster[p];
     }
+    if (ws) for (const [w, enAz] of oz) if (ws[w] < enAz) c += 3000 * (enAz - ws[w]);
     c += 6 * (say - h.hedef[p]) ** 2;
     c += h.wP * (pay - h.odeme[p]) ** 2;
     for (let q = 0; q < 5; q++) c += GW[q] * (gs[q] - h.beklenen[p][q]) ** 2;
@@ -157,12 +226,10 @@
     return c;
   }
 
-  const czCeza = (h, x) => (x > h.czLim ? (x - h.czLim) * h.czW : 0);
-
   function gunMaliyet(h, a) {
-    if (!h.czAcik) return 0;
+    if (!h.gAcik) return 0;
     let c = 0;
-    for (let d = 1; d <= h.G; d++) c += czCeza(h, a[d].filter((p) => h.cz[p]).length);
+    for (let d = 1; d <= h.G; d++) c += gunCost(h, a[d]);
     return c;
   }
 
@@ -183,6 +250,7 @@
     const son = new Array(n).fill(-9);
     for (const p of h.onceki) son[p] = 0;
     const blok = Array.from({ length: n }, () => ({}));
+    const wsay = Array.from({ length: n }, () => [0, 0, 0, 0, 0, 0, 0]);
     for (let d = 1; d <= G; d++) {
       const aday = [];
       for (let p = 0; p < n; p++) {
@@ -192,26 +260,31 @@
         if (h.ister[p].has(d)) s -= (v.zorunlu ? 5000 : 60) / Math.max(1, h.ister[p].size);
         if (d - son[p] === 2) s += 2;
         if (blok[p][d]) s += blok[p][d];
+        for (const [w, enAz] of h.oz[p]) if (w === h.wd[d] && wsay[p][w] < enAz) s -= 40;
         aday.push([s, p]);
       }
       aday.sort((x, y) => x[0] - y[0]);
       let sec;
-      if (h.czAcik) {
+      if (h.gAcik) {
         sec = [];
         const ertele = [];
         let cs = 0;
         for (const [, p] of aday) {
           if (sec.length >= v.kisi) break;
-          if (h.cz[p] && cs >= h.czLim) { ertele.push(p); continue; }
-          if (h.cz[p]) cs++;
+          if (h.uy[p].length) {
+            const c2 = gunCost(h, sec.concat(p), true);
+            if (c2 > cs) { ertele.push([c2 - cs, p]); continue; }
+          }
           sec.push(p);
         }
-        while (sec.length < v.kisi && ertele.length) sec.push(ertele.shift());
+        ertele.sort((x, y) => x[0] - y[0]);
+        while (sec.length < v.kisi && ertele.length) sec.push(ertele.shift()[1]);
       } else sec = aday.slice(0, v.kisi).map((x) => x[1]);
       a[d] = sec;
       for (const p of sec) {
         say[p]++;
         son[p] = d;
+        wsay[p][h.wd[d]]++;
         for (const [e, kesin] of h.sonra[d]) blok[p][e] = (blok[p][e] || 0) + (kesin ? 5000 : 30);
       }
     }
@@ -219,11 +292,16 @@
     for (let d = 1; d <= G; d++) for (const p of a[d]) gun[p][d] = true;
     const kc = [];
     for (let p = 0; p < n; p++) kc[p] = kisiMaliyet(v, h, p, gun[p]);
-    const czs = [0];
-    for (let d = 1; d <= G; d++) czs[d] = h.czAcik ? a[d].filter((p) => h.cz[p]).length : 0;
-    let c = kc.reduce((x, y) => x + y, 0) + gunMaliyet(h, a);
+    const gc = [0];
+    for (let d = 1; d <= G; d++) gc[d] = gunCost(h, a[d]);
+    let c = kc.reduce((x, y) => x + y, 0) + gc.reduce((x, y) => x + y, 0);
     let it = 0;
-    const czFark = (d, ek) => (h.czAcik && ek ? czCeza(h, czs[d] + ek) - czCeza(h, czs[d]) : 0);
+    const yeniGc = (d, yer, p) => {
+      if (!h.gAcik) return 0;
+      const L = a[d].slice();
+      L[yer] = p;
+      return gunCost(h, L);
+    };
 
     function adim(sayi) {
       const bit = Math.min(itSay, it + sayi);
@@ -238,11 +316,11 @@
           gun[yeni][d] = true;
           const e1 = kisiMaliyet(v, h, eski, gun[eski]);
           const e2 = kisiMaliyet(v, h, yeni, gun[yeni]);
-          const ek = h.czAcik ? h.cz[yeni] - h.cz[eski] : 0;
-          const fark = e1 + e2 - kc[eski] - kc[yeni] + czFark(d, ek);
+          const g1 = yeniGc(d, yer, yeni);
+          const fark = e1 + e2 - kc[eski] - kc[yeni] + g1 - gc[d];
           if (fark <= 0) {
             a[d][yer] = yeni;
-            czs[d] += ek;
+            gc[d] = g1;
             kc[eski] = e1;
             kc[yeni] = e2;
             c += fark;
@@ -262,12 +340,13 @@
           gun[o2][d] = true;
           const e1 = kisiMaliyet(v, h, eski, gun[eski]);
           const e2 = kisiMaliyet(v, h, o2, gun[o2]);
-          const ek = h.czAcik ? h.cz[o2] - h.cz[eski] : 0;
-          const fark = e1 + e2 - kc[eski] - kc[o2] + czFark(d, ek) + czFark(d2, -ek);
+          const g1 = yeniGc(d, yer, o2);
+          const g2 = yeniGc(d2, y2, eski);
+          const fark = e1 + e2 - kc[eski] - kc[o2] + g1 - gc[d] + g2 - gc[d2];
           if (fark <= 0) {
             a[d][yer] = o2;
-            czs[d] += ek;
-            czs[d2] -= ek;
+            gc[d] = g1;
+            gc[d2] = g2;
             a[d2][y2] = eski;
             kc[eski] = e1;
             kc[o2] = e2;
@@ -347,7 +426,8 @@
       for (const p of a[d]) {
         say[p]++;
         gun[p][d] = true;
-        if (h.yok[p].has(d)) sorun.push(d + ". gün: " + v.kisiler[p].ad + " izinli");
+        if (h.tumIzin[p]) sorun.push(d + ". gün: " + v.kisiler[p].ad + " bütün ay izinli");
+        else if (h.yok[p].has(d)) sorun.push(d + ". gün: " + v.kisiler[p].ad + " izinli");
         else if (h.istemez[p].has(d)) sorun.push(d + ". gün: " + v.kisiler[p].ad + " istemediği güne yazılmış");
       }
     }
@@ -355,11 +435,16 @@
       if (h.ard && h.onceki.has(p) && gun[p][1]) sorun.push(v.kisiler[p].ad + ": önceki ayın son günü ile 1. gün arka arkaya");
       if (h.ard) for (let d = 1; d < G; d++) if (gun[p][d] && gun[p][d + 1]) sorun.push(v.kisiler[p].ad + ": " + d + "-" + (d + 1) + " arka arkaya");
       for (let d = 1; d <= G; d++) if (gun[p][d]) for (const [e, , wg] of h.sonra[d]) if (gun[p][e]) sorun.push(v.kisiler[p].ad + ": " + d + ". gün " + GUN[wg].toLocaleLowerCase("tr") + " nöbetinden sonra " + e + ". gün " + GUN[haftaGunu(v, e)].toLocaleLowerCase("tr") + " de yazılmış (kural)");
+      if (h.oz[p].length) {
+        const ws = [0, 0, 0, 0, 0, 0, 0];
+        for (let d = 1; d <= G; d++) if (gun[p][d]) ws[h.wd[d]]++;
+        for (const [w, enAz] of h.oz[p]) if (ws[w] < enAz) sorun.push(v.kisiler[p].ad + ": özel talep en az " + enAz + " " + GUN[w].toLocaleLowerCase("tr") + ", verilen " + ws[w]);
+      }
       const ist = new Set(v.kisiler[p].istiyor);
       for (const d of ist) {
         if (gun[p][d]) continue;
         const ad = v.kisiler[p].ad;
-        if (h.yok[p].has(d)) sorun.push(ad + ": " + d + ". gün hem izinli hem istek, izin kesin olduğu için verilemez");
+        if (h.yok[p].has(d)) sorun.push(ad + ": " + d + ". gün izinli, istek verilemez");
         else if (h.ard && (ist.has(d - 1) || ist.has(d + 1))) sorun.push(ad + ": " + d + ". gün istediği halde yazılmadı, yanındaki gün de istek ve art arda nöbet olmaz, ikisi birden verilemez");
         else sorun.push(ad + ": " + d + ". gün istediği halde yazılmadı");
       }
@@ -368,9 +453,16 @@
       let ister = 0;
       for (let p = 0; p < h.n; p++) if (h.ister[p].has(d)) ister++;
       if (ister > v.kisi) sorun.push(d + ". gün: " + ister + " kişi istiyor, günlük kontenjan " + v.kisi + ", hepsi verilemez");
-      if (h.czAcik) {
-        const cs = a[d].filter((p) => h.cz[p]);
-        if (cs.length > h.czLim) sorun.push(d + ". gün: " + cs.length + " çömez aynı gün (" + cs.map((p) => v.kisiler[p].ad).join(", ") + "), en fazla " + h.czLim + " olmalı");
+      if (h.gAcik) {
+        const c = gunSay(h, a[d]);
+        const uyeAd = (i) => a[d].filter((p) => h.uy[p].includes(i)).map((p) => v.kisiler[p].ad).join(", ");
+        h.gruplar.forEach((r, i) => {
+          if (h.gLim[i] !== null && c[i] > h.gLim[i]) sorun.push(d + ". gün: " + r.ad + " grubundan " + c[i] + " kişi (" + uyeAd(i) + "), en fazla " + h.gLim[i] + " olmalı");
+        });
+        for (const [x, y, tur] of h.rel) {
+          if (tur === "ayri" && (x === y ? c[x] > 1 : c[x] && c[y])) sorun.push(d + ". gün: " + h.gruplar[x].ad + (x === y ? " üyeleri" : " ile " + h.gruplar[y].ad) + " aynı gün olmamalı");
+          if (tur === "birlikte" && x !== y && (c[x] > 0) !== (c[y] > 0)) sorun.push(d + ". gün: " + h.gruplar[x].ad + " ile " + h.gruplar[y].ad + " birlikte olmalı");
+        }
       }
     }
     return { say, sorun };
@@ -384,6 +476,7 @@
     return v.kisiler.map((k, p) => {
       const gs = [0, 0, 0, 0, 0];
       const ts = [0, 0, 0, 0, 0, 0, 0];
+      const hg = [0, 0, 0, 0, 0, 0, 0];
       let say = 0;
       let pay = 0;
       let ardArda = 0;
@@ -393,6 +486,7 @@
         say++;
         gs[h.grp[d]]++;
         ts[h.tp[d]]++;
+        hg[(h.wd[d] + 6) % 7]++;
         pay += h.ag[h.grp[d]];
         if (gun[p][d + 1]) ardArda++;
         for (const [e] of h.sonra[d]) if (gun[p][e]) perHs++;
@@ -405,16 +499,17 @@
       return {
         ad: k.ad, nobet: say, nobetHedef: h.hedef[p], nobetAsil: nb(k),
         odeme: pay, odemeHedef: h.odeme[p], odemeAsil: od(k),
-        grup: gs, grupBeklenen: h.beklenen[p], tip: ts, tipBeklenen: h.tipBek[p], comez: h.cz[p],
+        grup: gs, grupBeklenen: h.beklenen[p], tip: ts, tipBeklenen: h.tipBek[p], hg, tumIzin: h.tumIzin[p],
+        gruplar: h.uy[p].map((i) => h.gruplar[i].ad),
         istek: ist.length, istekVerilen: verilen,
         istemez: istemez.length, istemezIhlal: ihlal,
-        izin: k.izin.length, ardArda, perHs,
+        izin: (k.izin || []).length, ardArda, perHs,
         gecmis: gec, fark: { n: -h.dev[p].n, p: -h.dev[p].p }
       };
     });
   }
 
-  const M = { KURAL, kuralNorm, TIP_AD, tip, AGIRLIK, GRUP_AD, analiz, GUN, KISA, gunSayisi, haftaGunu, grup, kur, kurAsenkron, rapor, maliyet, hazirla };
+  const M = { KURAL, kuralNorm, gunCost, TIP_AD, tip, AGIRLIK, GRUP_AD, analiz, GUN, KISA, gunSayisi, haftaGunu, grup, kur, kurAsenkron, rapor, maliyet, hazirla };
   if (typeof module !== "undefined") module.exports = M;
   else g.MOTOR = M;
 })(typeof window !== "undefined" ? window : globalThis);
