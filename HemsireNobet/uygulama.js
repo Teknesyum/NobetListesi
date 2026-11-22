@@ -2092,7 +2092,8 @@ function baskiHazirla() {
   if (eski) eski.remove();
   const b = el("div", { className: "baski", id: "baski" });
   b.setAttribute("aria-hidden", "true");
-  b.append(el("h1", { className: "baski-baslik", textContent: $("#baslik").textContent }));
+  const ic = el("div", { className: "baski-ic" });
+  ic.append(el("h1", { className: "baski-baslik", textContent: $("#baslik").textContent }));
   const sira = el("div", { className: "baski-sira" });
   const lt = $("#liste").cloneNode(true);
   lt.removeAttribute("id");
@@ -2106,14 +2107,15 @@ function baskiHazirla() {
   const sag = el("div", { className: "baski-cetele" });
   sag.append(el("h2", { className: "baski-alt", textContent: "Çetele: " + AYLAR[V.ay - 1] + " " + V.yil }), ct);
   sira.append(lt, sag);
-  b.append(sira);
+  ic.append(sira);
+  b.append(ic);
   b.classList.add("olc");
   document.body.append(b);
-  const r = b.getBoundingClientRect();
-  const w = Math.max(r.width, b.scrollWidth), h = Math.max(r.height, b.scrollHeight);
+  const r = ic.getBoundingClientRect();
+  const w = Math.max(r.width, ic.scrollWidth), h = Math.max(r.height, ic.scrollHeight);
   b.dataset.olcu = Math.round(w) + "x" + Math.round(h);
   const z = Math.min(1, 1040 / w, 705 / h);
-  b.style.zoom = String(Math.floor(z * 1000) / 1000);
+  ic.style.zoom = String(Math.floor(z * 1000) / 1000);
   b.classList.remove("olc");
   return b;
 }
