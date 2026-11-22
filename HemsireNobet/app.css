@@ -308,6 +308,13 @@ table.cetele td { font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); col
 table.cetele th { padding: var(--tk-sp-1) var(--tk-sp-1); }
 table.cetele td.ad { white-space: nowrap; }
 table.cetele td.np { font-weight: var(--tk-fw-semi); white-space: nowrap; }
+table.cetele td .puan { color: var(--tk-renk-1); }
+table.cetele td .sayi + .puan { margin-left: var(--tk-sp-1); }
+table.cetele td[data-iyi="1"] .sayi { color: var(--tk-success); }
+table.cetele td.fark[data-iyi="1"] .puan { color: var(--tk-success); }
+table.cetele td.fark[data-kotu="1"] .puan { color: var(--tk-warning); }
+.yardim[data-iyi="1"] { color: var(--tk-success); }
+.yardim[data-kotu="1"] { color: var(--tk-warning); }
 table.cetele td.sifir { color: var(--tk-disabled); }
 table.cetele td.elle { color: var(--tk-renk-2-text); font-weight: var(--tk-fw-semi); }
 table.cetele td.fark[data-kotu="1"] { color: var(--tk-warning); }
