@@ -37,7 +37,11 @@ body { overflow: hidden; background: transparent; font-variant-numeric: tabular-
 .gnc-yazi { margin: 0; font-size: var(--tk-fs-2); line-height: var(--tk-lh-body); color: var(--tk-text); white-space: pre-wrap; }
 .gnc-eylem { display: flex; flex-wrap: wrap; gap: var(--tk-sp-2); min-width: 0; }
 
-.kabuk { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr); min-height: 0; }
+.kabuk { display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr); min-height: 0; }
+.kabuk > .govde { grid-row: -2 / -1; }
+.ipucu-bar { margin: var(--tk-sp-2) var(--tk-sp-3) 0; padding: var(--tk-sp-1) var(--tk-sp-3); font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-success); border: calc(var(--tk-border-w) * 2) solid var(--tk-success); border-radius: var(--tk-r-box); }
+.ipucu-bar[hidden] { display: none; }
+.ipucu-bar kbd { font: inherit; font-weight: var(--tk-fw-semi); }
 
 .ust {
   display: flex;
@@ -421,7 +425,7 @@ table.istek .ctrl { background-image: linear-gradient(var(--vurgu-3), var(--vurg
   :root { color-scheme: light; }
   html, body { background: Canvas; color: CanvasText; overflow: visible; }
   .cerceve { display: block; height: auto; border-radius: 0; background: Canvas; overflow: visible; }
-  .tk-titlebar, .ust, .sekme-sira, .rehber-bar, .icerik, .yardim-balon, .tk-toast-stack, .gnc-ort, .liste-bas .dgm, .oniz-yazi, .liste-bas .bosluk { display: none !important; }
+  .tk-titlebar, .ust, .sekme-sira, .rehber-bar, .ipucu-bar, .icerik, .yardim-balon, .tk-toast-stack, .gnc-ort, .liste-bas .dgm, .oniz-yazi, .liste-bas .bosluk { display: none !important; }
   .kabuk, .govde { display: block; padding: 0; }
   .govde .liste-pnl { display: block !important; background: Canvas; overflow: visible; }
   .liste-bas { display: block; padding: 0; }

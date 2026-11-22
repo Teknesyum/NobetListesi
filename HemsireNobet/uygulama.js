@@ -21,7 +21,7 @@ const ayKisa = k => { const [y, a] = k.split("-"); return AYLAR[+a - 1] + " " + 
 
 function oku(k) { try { return JSON.parse(W.veri.oku(k)); } catch (e) { return null; } }
 
-const AYAR = Object.assign({ altSay: 300, onayIste: false, yesilYol: true, rehber: true, rehberSoruldu: false, resmiTatil: true }, oku("ayar") || {});
+const AYAR = Object.assign({ altSay: 300, onayIste: false, yesilYol: true, rehber: true, rehberSoruldu: false, resmiTatil: true, yardimGoruldu: false }, oku("ayar") || {});
 function ayarYaz(x) { Object.assign(AYAR, x); W.veri.yaz("ayar", JSON.stringify(AYAR)); }
 
 function toast(m, tur, ms) {
@@ -605,7 +605,7 @@ function istekCiz() {
     ornek("ornek-ism", "İstemiyor · sağ tık", "✗"),
     ornek("ornek-hs", "Hafta sonu"),
     ornek("ornek-tatil", "Resmi tatil"),
-    el("span", { textContent: "Sol Ctrl + tık: o günün ayın tamamı · İsme tık: bütün ay ✗" })
+    el("span", { textContent: "Sol Ctrl + tık: o kişinin aynı haftagünlerinin tamamı · İsme tık: bütün ay ✗" })
   );
   p.append(lej);
   const kap = el("div", { className: "istek-kap" });
@@ -738,7 +738,23 @@ function istekCiz() {
   p.append(kap);
   const ileri = el("button", { type: "button", className: "dgm dgm-birincil", id: "btnOzelSonraki", textContent: "Sonraki: Özel Talepler" });
   ileri.onclick = () => sekme("ozel");
-  p.append(satir(ileri));
+  const sifir = el("button", { type: "button", className: "dgm dgm-sil", id: "btnIstekSifir", textContent: "Tüm İstekleri Sıfırla" });
+  let onay = null;
+  sifir.onclick = () => {
+    if (!V.kisiler.some(k => (k.istiyor || []).length || (k.istemiyor || []).length || (k.izin || []).length)) { toast("Bu ay silinecek istek yok.", "info"); return; }
+    if (!onay) {
+      sifir.textContent = "Emin misin? Bir daha bas";
+      onay = setTimeout(() => { onay = null; sifir.textContent = "Tüm İstekleri Sıfırla"; }, 3000);
+      return;
+    }
+    clearTimeout(onay);
+    onay = null;
+    V.kisiler.forEach(k => { k.istiyor = []; k.istemiyor = []; k.izin = []; });
+    degisti();
+    istekCiz();
+    toast("Bu ayın bütün istekleri sıfırlandı.", "info");
+  };
+  p.append(satir(ileri, sifir));
   p.append(yardim("Sol tık ✓ istiyor, sağ tık ✗ istemiyor; aynı tık bir daha basılırsa kutu boşalır. Basılı tutup sürüklersen geçtiğin kutular aynı şekilde boyanır. Sol Ctrl basılıyken tıklarsan o kişinin aynı haftagünlerinin hepsi birden değişir. En az istekte bulunanın isteği önceliklidir."));
 }
 
@@ -1280,6 +1296,11 @@ const YARDIM = [
   ["#liste", "Nöbet Listesi", "Ayın her günü ve nöbetçileri. Kutudan elle değiştirebilirsin; uyarı renkli kutu istemediği güne ya da art arda nöbete düşmüş demek. Pembe çerçeve: alternatif önizlemesi."],
   ["table.istek .ad-dgm", "İsim", "Tıkla: bütün ayı ✗ yap. Bir daha tıkla: geri al."],
   ["table.istek .hc", "İstek Kutusu", "Sol tık ✓, sağ tık ✗, aynı tık boşaltır. Sürükleyerek boya. Sol Ctrl + tık: o haftagününün tamamı."],
+  ["#btnIstekSifir", "Tüm İstekleri Sıfırla", "Bu ayın bütün ✓ ve ✗ işaretlerini siler. Yanlışlıkla silinmesin diye iki kez basılır: ilk basışta düğme onay ister, 3 saniye içinde bir daha basarsan siler."],
+  ["#btnOzelSonraki", "Sonraki: Özel Talepler", "İstekleri bitirdiysen bas; Özel Talepler sekmesine geçer."],
+  ["#ipucuBar", "Rehber İpucu", "Sağ Ctrl bir kez basılı tutulunca kaybolur. Ayarlar › Genel'de rehber kapalıysa hiç çıkmaz."],
+  ["#rehberDevam", "Rehberle Devam Et", "Sonraki aylarda da rehber yol gösterir: Listeyi Oluştur önce Özel Talepler'e yönlendirir."],
+  ["#rehberKapat", "Rehberi Kapat", "Rehber yönlendirmeyi bırakır. Ayarlar › Genel'den yeniden açılabilir."],
   ["#rehberBar", "Rehber", "Rehberle devam edersen her ay önce Özel Talepler'e yönlendirilirsin."],
   ["#sk-istek, #p-istek", "1 · İstekler", "Kimin hangi gün nöbet istediği (✓) ya da istemediği (✗)."],
   ["#sk-ozel, #p-ozel", "2 · Özel Talepler", "Şu kişilere en az 1 Perşembe gibi talepler."],
@@ -1299,14 +1320,31 @@ const YARDIM = [
   ["#basbarSurum", "Sürüm", "Güncellemeleri denetler."],
   ["#imza", "İmza", "Teknesyum GitHub sayfasını açar."],
   ["#destek", "Destek", "Geliştiriciyi destekleme sayfasını açar."],
-  [".tk-titlebar", "Başlık Çubuğu", "Sürükleyerek taşı; çift tık büyütür."]
+  [".tk-titlebar", "Başlık Çubuğu", "Sürükleyerek taşı; çift tık büyütür."],
+  [".ust", "Üst Bölüm", "Ay seçimi, günlük kişi sayısı ve Listeyi Oluştur düğmesi."]
 ];
 
+const ADIM = {
+  istek: "Bu bölümde istekler ve izinler girilir. Nöbet istenen günlere sol tıkla ✓, izinli ya da nöbet istenmeyen günlere sağ tıkla ✗ koy. Bitirince Sonraki: Özel Talepler düğmesine bas.",
+  ozel: "Bu bölümde “şu kişilere en az 1 Perşembe” gibi talepler girilir. Gerekmiyorsa boş bırak. Bitirince Listeyi Oluştur'a bas.",
+  liste: "Bu bölümde liste ve çetele görülür. Listeyi kontrol et, gerekirse kutudan elle değiştir. Bitirince Yazdır'a ya da Excel'e Kopyala'ya bas.",
+  alt: "Bu bölümde denenen listelerin en iyileri sıralanır. Üstüne gelip önizle, beğendiğine tıklayıp seç, sonra Liste ve Çetele'ye dön.",
+  analiz: "Bu bölümde herkesin nöbet ve puanı hedefle karşılaştırılır. Sapma büyükse Alternatifler'den başka bir liste seç.",
+  sorun: "Bu bölümde kuralı çiğneyen nöbetler listelenir. Sorun yoksa yazdırmaya geç; varsa istekleri gevşetip Listeyi Oluştur'a bas.",
+  kadro: "Bu bölümde hemşire adları ve nöbet payları girilir. Bitirince Liste Hazırlama › İstekler'e geç.",
+  kural: "Bu bölümde nöbet kuralları ayarlanır. Bir kuralı değiştirdiysen Listeyi Oluştur'a basıp listeyi yenile.",
+  ileri: "Bu bölümde gruplar kurulur. Grup Ekle'ye bas, gruptaki kişilerin adına tıkla, aynı gün olsun ya da olmasın kuralını seç.",
+  gecmis: "Bu bölümde önceki ayların nöbetleri görülür. Hesaba katılacak ayları seç; o aylardaki fazlalık ve eksiklik yeni listede dengelenir.",
+  genel: "Bu bölümde program ayarları yapılır. Her değişiklik hemen kaydedilir.",
+  hakkinda: "Programın tanıtımı. Kullanmaya Liste Hazırlama › İstekler'den başla."
+};
+
 function simdiMetni() {
-  if (CALISIYOR) return "Liste hazırlanıyor. Bitmesini bekle ya da Durdur'a bas.";
-  if (!L) return OZEL_GORULDU ? "Listeyi Oluştur'a bas." : "İstekleri işaretle, Özel Talepler'i kontrol et, sonra Listeyi Oluştur'a bas.";
-  if (ESKI) return "Bir şey değişti. Listeyi Oluştur ile listeyi yenile.";
-  return "Liste hazır. Kontrol et, sonra yazdır ya da Excel'e kopyala.";
+  if (CALISIYOR) return "Liste hazırlanıyor. Bitmesini bekle; vazgeçersen Listeyi Oluştur'a bir daha bas.";
+  const listeTarafi = ["liste", "alt", "analiz", "sorun"].includes(AKTIF);
+  if (listeTarafi && !L) return "Bu ay için henüz liste yok. İstekleri ve özel talepleri girdiysen Listeyi Oluştur'a bas.";
+  if (listeTarafi && ESKI) return "Liste oluşturulduktan sonra istekler ya da ayarlar değişti; bu liste onları içermiyor. Yeni hâliyle görmek için Listeyi Oluştur'a bas.";
+  return ADIM[AKTIF] || ADIM.istek;
 }
 
 (() => {
@@ -1316,7 +1354,8 @@ function simdiMetni() {
     const hedef = document.elementFromPoint(mx, my);
     let bul = null;
     for (let x = hedef; x && !bul; x = x.parentElement) bul = YARDIM.find(([s]) => x.matches && x.matches(s));
-    const [, bas, metin] = bul || [null, "Yardım", "Bu bölüm için ayrı açıklama yok. Hakkında sekmesinde genel kullanım anlatılıyor."];
+    if (!bul) bul = YARDIM.find(([s]) => s.split(", ")[0] === "#sk-" + AKTIF);
+    const [, bas, metin] = bul;
     $("#yardimBaslik").textContent = bas;
     $("#yardimMetin").textContent = metin;
     $("#yardimSimdi").textContent = "Şimdi: " + simdiMetni();
@@ -1330,7 +1369,12 @@ function simdiMetni() {
   const kapat = () => { basili = false; balon.hidden = true; };
   document.addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; if (basili) goster(); }, true);
   document.addEventListener("keydown", e => {
-    if (e.code === "ControlRight") { if (!basili) { basili = true; goster(); } e.preventDefault(); return; }
+    if (e.code === "ControlRight") {
+      if (!basili) { basili = true; goster(); }
+      if (!AYAR.yardimGoruldu) { ayarYaz({ yardimGoruldu: true }); $("#ipucuBar").hidden = true; }
+      e.preventDefault();
+      return;
+    }
     if (e.code === "ControlLeft" && !SOLCTRL) { SOLCTRL = true; const t = $("table.istek"); if (t && t._vurgula) t._vurgula(); }
   });
   document.addEventListener("keyup", e => {
@@ -1338,6 +1382,7 @@ function simdiMetni() {
     if (e.code === "ControlLeft") { SOLCTRL = false; const t = $("table.istek"); if (t && t._vurgula) t._vurgula(); }
   });
   window.addEventListener("blur", () => { kapat(); SOLCTRL = false; });
+  $("#ipucuBar").hidden = !(AYAR.rehber && !AYAR.yardimGoruldu);
 })();
 
 function ciz() {
