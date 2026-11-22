@@ -68,8 +68,33 @@ app.on("second-instance", () => {
   ana.focus();
 });
 
+function masaustuKisayol() {
+  if (process.platform !== "win32" || process.env.NOBET_KISAYOL === "0") return;
+  try {
+    const exe = process.execPath;
+    const kok = path.dirname(path.dirname(exe));
+    const bat = path.join(kok, "HemsireNobet.bat");
+    if (path.basename(path.dirname(exe)).toLowerCase() !== "electron" || !fs.existsSync(bat)) return;
+    const masa = app.getPath("desktop");
+    const ayni = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+    for (const f of fs.readdirSync(masa)) {
+      if (!f.toLowerCase().endsWith(".lnk")) continue;
+      try {
+        const l = shell.readShortcutLink(path.join(masa, f));
+        if (l.target && (ayni(l.target, exe) || ayni(l.target, bat))) return;
+      } catch {}
+    }
+    const ico = path.join(kok, "simge.ico");
+    shell.writeShortcutLink(path.join(masa, "HemşireNöbet.lnk"), "create", {
+      target: exe, args: '"' + kok + '"', cwd: kok, description: "Ameliyathane HemşireNöbet",
+      icon: fs.existsSync(ico) ? ico : exe, iconIndex: 0
+    });
+  } catch {}
+}
+
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
+  masaustuKisayol();
   ipcMain.on("pencere:kucult", e => { const w = hedef(e); if (w) w.minimize(); });
   ipcMain.on("pencere:buyult", e => {
     const w = hedef(e);

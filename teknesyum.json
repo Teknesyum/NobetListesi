@@ -4,5 +4,6 @@
   "asset": "HemsireNobet-portable-*.zip",
   "method": "zip",
   "run": "HemsireNobet.bat",
-  "keep": ["veri"]
+  "keep": ["veri"],
+  "desktop": true
 }
