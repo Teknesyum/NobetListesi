@@ -3,3 +3,4 @@ veri/
 electron/
 node_modules/
 dist-portable/
+tmp/

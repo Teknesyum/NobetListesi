@@ -77,6 +77,8 @@ body { overflow: hidden; background: transparent; font-variant-numeric: tabular-
 .dgm[aria-pressed="true"] { color: var(--tk-renk-1); }
 .dgm[aria-pressed="false"] { color: var(--tk-text-label); }
 .dgm[aria-pressed]:hover, .dgm[aria-pressed]:focus-visible { color: var(--tk-renk-2-text); }
+.dgm[aria-pressed]:active { color: var(--tk-renk-1); }
+.dgm[aria-pressed]:disabled { color: var(--tk-disabled); cursor: not-allowed; }
 .dgm:disabled { color: var(--tk-disabled); background: transparent; box-shadow: none; cursor: not-allowed; }
 .dgm-kare { min-width: var(--tk-target-min); min-height: var(--tk-target-min); padding: 0 var(--tk-sp-1); }
 .dgm-birincil { background: var(--tk-renk-1); color: var(--tk-on-renk-1); box-shadow: var(--tk-glow-renk-1); }
@@ -84,6 +86,8 @@ body { overflow: hidden; background: transparent; font-variant-numeric: tabular-
 .dgm-birincil:active { background: var(--tk-renk-1); color: var(--tk-on-renk-1); }
 .dgm-birincil:disabled { background: transparent; color: var(--tk-disabled); box-shadow: none; cursor: not-allowed; }
 .dgm-sil:hover, .dgm-sil:focus-visible { color: var(--tk-warning); }
+.dgm-sil:active { color: var(--tk-warning); }
+.dgm-sil:disabled { color: var(--tk-disabled); cursor: not-allowed; }
 
 .yol { outline: calc(var(--tk-border-w) * 2) solid var(--tk-success); outline-offset: calc(var(--tk-border-w) * 2); }
 
@@ -161,6 +165,8 @@ body { overflow: hidden; background: transparent; font-variant-numeric: tabular-
 .sekme:hover, .sekme:focus-visible { color: var(--tk-renk-2-text); }
 .sekme:hover::after, .sekme:focus-visible::after { transform: scaleX(1); }
 .sekme:active { color: var(--tk-renk-1); }
+.sekme:active::after { background: var(--tk-renk-1); }
+.sekme:disabled::after { background: transparent; cursor: not-allowed; }
 .sekme[aria-selected="true"] { color: var(--tk-renk-1); }
 .sekme[aria-selected="true"]::after { background: var(--tk-renk-1); transform: scaleX(1); }
 .sekme[hidden] { display: none; }

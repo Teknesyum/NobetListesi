@@ -1,5 +1,7 @@
 # NobetListesi
 
+[Türkçe](README.tr.md)
+
 Duty-roster tools by Teknesyum.
 
 ## HemsireNobet

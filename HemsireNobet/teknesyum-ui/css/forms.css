@@ -138,6 +138,8 @@
 .tk-modal-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: var(--tk-row-gap);
   margin-top: var(--tk-section-gap);
 }
