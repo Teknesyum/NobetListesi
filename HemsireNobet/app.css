@@ -41,6 +41,9 @@ body { overflow: hidden; background: transparent; font-variant-numeric: tabular-
 .kabuk > .govde { grid-row: -2 / -1; }
 .ipucu-bar { position: fixed; z-index: 60; bottom: calc(var(--tk-btn-h) * 2); left: 50%; transform: translateX(-50%); max-width: calc(100vw - 2 * var(--tk-sp-3)); background: var(--tk-surface); box-shadow: var(--tk-shadow-panel); cursor: pointer; padding: var(--tk-sp-2) var(--tk-sp-3); font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-success); border: calc(var(--tk-border-w) * 2) solid var(--tk-success); border-radius: var(--tk-r-box); }
 .ipucu-bar[hidden] { display: none; }
+.suruk-ipucu { position: fixed; z-index: 70; pointer-events: none; transform: translate(var(--tk-sp-3), var(--tk-sp-3)); max-width: calc(100vw / 3); background: var(--tk-surface); box-shadow: var(--tk-shadow-panel); padding: var(--tk-sp-1) var(--tk-sp-2); font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); border: var(--tk-border-w) solid var(--takas, var(--tk-border)); border-radius: var(--tk-r-box); color: var(--takas, var(--tk-text)); font-weight: var(--tk-fw-semi); }
+.suruk-ipucu.sol { transform: translate(calc(-100% - var(--tk-sp-3)), var(--tk-sp-3)); }
+.suruk-ipucu[hidden] { display: none; }
 .ipucu-kapat { color: var(--tk-text-label); }
 .ipucu-bar kbd { font: inherit; font-weight: var(--tk-fw-semi); }
 
@@ -255,6 +258,8 @@ table.liste td.hucre[data-pin="1"] { outline: var(--tk-border-w) solid var(--tk-
 table.liste td.hucre[data-pin="1"] .sec { color: var(--tk-renk-1); }
 table.liste td.hucre.vurgu { background-image: linear-gradient(color-mix(in srgb, var(--tk-renk-2) 32%, transparent), color-mix(in srgb, var(--tk-renk-2) 32%, transparent)); }
 table.liste tr.vurgu-gun td { background-image: linear-gradient(color-mix(in srgb, var(--tk-renk-2) 16%, transparent), color-mix(in srgb, var(--tk-renk-2) 16%, transparent)); }
+table.cetele.etk td.gh { cursor: pointer; }
+table.cetele.etk td.vurgu-hucre { outline: var(--tk-focus-w) solid var(--tk-renk-2); outline-offset: calc(-1 * var(--tk-focus-w)); }
 table.cetele.etk td.vurgu, table.cetele.etk tr.vurgu td { background-image: linear-gradient(color-mix(in srgb, var(--tk-renk-2) 16%, transparent), color-mix(in srgb, var(--tk-renk-2) 16%, transparent)); }
 table.cetele.etk .ad-dgm[aria-pressed="true"] { color: var(--tk-renk-1); }
 table.cetele.etk .gun-dgm { min-height: 0; text-align: center; font-weight: inherit; }

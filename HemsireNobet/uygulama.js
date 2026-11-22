@@ -376,23 +376,39 @@ const NEDEN = {
 };
 const nedenMetin = n => n.map(([t, p]) => NEDEN[t](p)).join(" · ");
 
-function surukle(e, basla, birak, tik) {
+function surukle(e, basla, birak, tik, gez) {
   if (e.button !== 0) return;
   e.preventDefault();
   const x0 = e.clientX, y0 = e.clientY;
   let aktif = false;
   const mm = ev => {
     if (!aktif && Math.hypot(ev.clientX - x0, ev.clientY - y0) > 4) { aktif = true; document.body.classList.add("suruk"); basla(); }
+    if (aktif && gez) gez(ev);
   };
   const mu = ev => {
     document.removeEventListener("mousemove", mm, true);
     document.removeEventListener("mouseup", mu, true);
     document.body.classList.remove("suruk");
+    surukIpucu(null);
     if (aktif) birak(ev.target); else if (tik) tik();
   };
   document.addEventListener("mousemove", mm, true);
   document.addEventListener("mouseup", mu, true);
 }
+
+function surukIpucu(ev, metin, renk) {
+  let b = $("#surukIpucu");
+  if (!ev) { if (b) b.hidden = true; return; }
+  if (!b) { b = el("div", { id: "surukIpucu", className: "suruk-ipucu" }); b.setAttribute("role", "status"); document.body.append(b); }
+  b.hidden = false;
+  b.textContent = metin;
+  b.dataset.takas = renk;
+  b.style.left = ev.clientX + "px";
+  b.style.top = ev.clientY + "px";
+  b.classList.toggle("sol", ev.clientX + b.offsetWidth * 1.2 > innerWidth);
+}
+
+const takasYazi = r => !r ? "" : r.renk === "yesil" ? "Sorun yok" : nedenMetin(r.neden) + (r.sert ? " · Bırakırsan taşınır, yeni liste yapılacak" : "");
 
 function takasTemizle() {
   document.querySelectorAll("[data-takas]").forEach(x => { delete x.dataset.takas; x.removeAttribute("title"); });
@@ -408,8 +424,14 @@ function sonucUygula(r, yeni, mesaj) {
   if (!r) return;
   if (r.engel) { toast("Olmaz: " + nedenMetin(r.neden), "warning"); return; }
   L = yeni();
+  if (r.sert && r.sabit) r.sabit.forEach(([d, y]) => { V.pin = V.pin.filter(x => !(x[0] === d && x[1] === y)); V.pin.push([d, y, V.kisiler[L[d][y]].ad]); });
   degisti();
   ciz();
+  if (r.sert && r.sabit) {
+    toast(mesaj() + " Kural bozuldu: " + nedenMetin(r.neden) + ". Yeni liste yapılacak; taşınan nöbet sabitlendi.", "warning", 6000);
+    setTimeout(() => uret(true), 600);
+    return;
+  }
   toast(mesaj() + (r.neden.length ? " Uyarı: " + nedenMetin(r.neden) : ""), r.renk === "yesil" ? "success" : "warning");
 }
 
@@ -426,11 +448,16 @@ function hucreSurukle(e, d, y) {
     takasTemizle();
     if (!td) return;
     const r = sonuc.find(x => x.d === +td.dataset.d && x.y === +td.dataset.y);
+    if (r) r.sabit = [[d, y], [r.d, r.y]];
     sonucUygula(r, () => MOTOR.takasYap(L, d, y, r.d, r.y), () => tarihMetin(d) + " ile " + tarihMetin(r.d) + " yer değiştirdi.");
   }, () => {
     const s = SECLER[d][y];
     s.focus();
     try { s.showPicker(); } catch (x) {}
+  }, ev => {
+    const td = ev.target && ev.target.closest && ev.target.closest("td.hucre");
+    const r = td && sonuc.find(x => x.d === +td.dataset.d && x.y === +td.dataset.y);
+    if (r) surukIpucu(ev, takasYazi(r), r.renk); else surukIpucu(null);
   });
 }
 
@@ -532,10 +559,10 @@ function listeDoldur(liste, oniz) {
       const td = s.parentElement;
       const pin = !oniz && liste === L && L && V.pin.some(x => x[0] === d && x[1] === y);
       if (pin) td.dataset.pin = "1"; else delete td.dataset.pin;
-      td.classList.toggle("vurgu", !oniz && VURGU_KISI !== null && p === VURGU_KISI);
+      td.classList.toggle("vurgu", !oniz && VURGU_KISI !== null && p === VURGU_KISI && (VURGU_GUN === null || (MOTOR.haftaGunu(V, d) + 6) % 7 === VURGU_GUN));
     }
     s0 = SECLER[d][0];
-    if (s0) s0.closest("tr").classList.toggle("vurgu-gun", VURGU_GUN !== null && (MOTOR.haftaGunu(V, d) + 6) % 7 === VURGU_GUN);
+    if (s0) s0.closest("tr").classList.toggle("vurgu-gun", VURGU_GUN !== null && VURGU_KISI === null && (MOTOR.haftaGunu(V, d) + 6) % 7 === VURGU_GUN);
   }
 }
 
@@ -568,7 +595,7 @@ function ceteleTablo(satirlar, gecmisVar, etk) {
       a.onclick = () => { VURGU_KISI = VURGU_KISI === ri ? null : ri; listeDoldur(L, false); ceteleCiz(); };
       td.append(a);
       tr.append(td);
-      if (VURGU_KISI === ri) tr.classList.add("vurgu");
+      if (VURGU_KISI === ri && VURGU_GUN === null) tr.classList.add("vurgu");
     } else tr.append(el("td", { className: "ad", textContent: r.ad }));
     r.hg.forEach((x, i) => {
       top[i] += x;
@@ -578,8 +605,10 @@ function ceteleTablo(satirlar, gecmisVar, etk) {
         td.dataset.q = ri;
         td.dataset.i = i;
         if (x && L && !CALISIYOR) { td.classList.add("tasin"); td.addEventListener("mousedown", e => verSurukle(e, ri, i)); }
+        else td.addEventListener("click", () => hucreVurgu(ri, i));
+        td.title = r.ad + " · " + CETELE_AD[i] + ": tıkla, listede yansın";
       }
-      if (etk && VURGU_GUN === i) td.classList.add("vurgu");
+      if (etk && (VURGU_KISI === null ? VURGU_GUN === i : VURGU_KISI === ri && VURGU_GUN === i)) td.classList.add("vurgu", "vurgu-hucre");
       tr.append(td);
     });
     tn += r.n;
@@ -599,20 +628,41 @@ function ceteleTablo(satirlar, gecmisVar, etk) {
   return t;
 }
 
+function hucreVurgu(ri, i) {
+  const ayni = VURGU_KISI === ri && VURGU_GUN === i;
+  VURGU_KISI = ayni ? null : ri;
+  VURGU_GUN = ayni ? null : i;
+  listeDoldur(L, false);
+  ceteleCiz();
+}
+
 function verSurukle(e, p, i) {
   let sonuc = [];
-  const tablo = e.currentTarget.closest("table");
-  e.currentTarget.classList.add("kaynak");
+  const kaynak = e.currentTarget;
+  const tablo = kaynak.closest("table");
+  const kx = kaynak.textContent;
+  let onceki = null;
+  const geri = () => { if (onceki) { onceki.td.textContent = onceki.x; onceki = null; } kaynak.textContent = kx; };
   surukle(e, () => {
+    kaynak.classList.add("kaynak");
     sonuc = MOTOR.verAnaliz(V, L, p, (i + 1) % 7);
     sonuc.forEach(r => { const td = tablo.querySelector('td.gh[data-q="' + r.q + '"][data-i="' + i + '"]'); if (td) takasIsaretle(td, r); });
   }, hedef => {
+    geri();
     const td = hedef && hedef.closest && hedef.closest("td.gh");
     takasTemizle();
     if (!td || +td.dataset.i !== i) return;
     const r = sonuc.find(x => x.q === +td.dataset.q);
+    if (r) r.sabit = [[r.d, r.y]];
     sonucUygula(r, () => MOTOR.verYap(L, r.d, r.y, r.q), () => V.kisiler[p].ad + " → " + V.kisiler[r.q].ad + ": " + tarihMetin(r.d) + " nöbeti verildi.");
-  }, () => takasTemizle());
+  }, () => { takasTemizle(); hucreVurgu(p, i); }, ev => {
+    const td = ev.target && ev.target.closest && ev.target.closest("td.gh");
+    const r = td && td !== kaynak && +td.dataset.i === i && sonuc.find(x => x.q === +td.dataset.q);
+    if (onceki && onceki.td !== td) geri();
+    if (!r) { surukIpucu(null); return; }
+    if (!onceki) { onceki = { td, x: td.textContent }; td.textContent = String(+td.textContent + 1); kaynak.textContent = String(+kx - 1); }
+    surukIpucu(ev, V.kisiler[r.q].ad + " " + onceki.x + " → " + td.textContent + " · " + takasYazi(r), r.renk);
+  });
 }
 
 function ceteleCiz() {
@@ -635,7 +685,7 @@ function ceteleCiz() {
   const kap = el("div", { className: "istek-kap" });
   kap.append(basYardim(ceteleTablo(rows, true, true), CETELE_BAS));
   p.append(kap);
-  if (L) p.append(yardim("Ada tıkla: nöbetleri listede yanar. Gün başlığına tıkla: o günler yanar. Bir gün sayısını başka birinin aynı sütununa sürükle: o günün nöbetini ona ver."));
+  if (L) p.append(yardim("Ada tıkla: nöbetleri listede yanar. Gün başlığına tıkla: o günler yanar. Bir kişinin gün hücresine tıkla: yalnız o kişinin o gündeki nöbetleri yanar. Bir gün sayısını başka birinin aynı sütununa sürükle: üstüne gelince sayılar ±1 değişir ve sorun yazılır; kırmızıda bırakırsan taşınır, nöbet sabitlenir ve yeni liste yapılır."));
   if (!L) p.append(yardim("Liste henüz oluşturulmadı. Üstteki Listeyi Oluştur düğmesine bas."));
   p.append(yardim("Her sütun o gün tutulan nöbet sayısı. NÖBET: nöbet / ödeme puanı (Cuma 2, Cumartesi 3, Pazar ve tatil 2). GEÇMİŞ: önceki aylarda hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan."));
   const b = yd(el("button", { type: "button", className: "dgm", textContent: "Geçmiş Verileri İncele" }), "Geçmiş Verileri İncele", "Ayarlar › Geçmiş sekmesini açar: önceki ayların çetelesi, hangi ayların hesaba katıldığı ve elle ay ekleme orada.");
@@ -1617,7 +1667,7 @@ const YARDIM = [
   ["#btnKopya", "Excel'e Kopyala", "Listeyi panoya kopyalar, Excel'e yapıştırılır."],
   ["#btnCsv", "CSV Kaydet", "Listeyi CSV dosyası olarak kaydeder."],
   ["#btnYazdir", "Yazdır", "Yalnız listeyi yazdırır."],
-  ["#liste", "Nöbet Listesi", "Tıkla: kişiyi seç. Sürükle: başka bir hücreyle yer değiştir; sürüklerken hücre yazısı renklenir: yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği bozulur, kırmızı kural bozulur. Sağ tık: hücreyi sabitle, Listeyi Oluştur onu korur. Uyarı renkli yazı istemediği güne ya da art arda nöbete düşmüş demek."],
+  ["#liste", "Nöbet Listesi", "Tıkla: kişiyi seç. Sürükle: başka bir hücreyle yer değiştir; sürüklerken hücre yazısı renklenir: yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği ya da ücret sırası bozulur, kırmızı kural bozulur (bırakırsan yine de taşınır, nöbet sabitlenir ve yeni liste yapılır). Sağ tık: hücreyi sabitle, Listeyi Oluştur onu korur. Uyarı renkli yazı istemediği güne ya da art arda nöbete düşmüş demek."],
   ["table.istek .ad-dgm", "İsim", "Tıkla: bütün ayı ✗ yap. Bir daha tıkla: geri al."],
   ["table.istek .hc", "İstek Kutusu", "Sol tık ✓, sağ tık ✗, aynı tık boşaltır. Sürükleyerek boya. Sol Ctrl + tık: o haftanın Pzt–Cum günleri ✗."],
   ["#btnIstekSifir", "Tüm İstekleri Sıfırla", "Bu ayın bütün ✓ ve ✗ işaretlerini siler. Yanlışlıkla silinmesin diye iki kez basılır: ilk basışta düğme onay ister, 3 saniye içinde bir daha basarsan siler."],
@@ -1638,7 +1688,7 @@ const YARDIM = [
   ["#sk-gecmis, #p-gecmis", "Geçmiş", "Önceki ayların çetelesi; hangi ayların hesaba katılacağı."],
   ["#sk-genel, #p-genel", "Genel", "Güncelleme, Yeşil Yol, rehber, resmi tatil, alternatif sayısı."],
   ["#sk-hakkinda, #p-hakkinda", "Hakkında", "Programın tanıtımı ve kullanımı."],
-  ["#liste select", "Nöbetçi Kutusu", "Tıkla: başka birini seç, — boşaltır. Sürükle: başka bir hücreyle yer değiştir; yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği bozulur, kırmızı kural bozulur. Sağ tık: sabitle, Listeyi Oluştur korur."],
+  ["#liste select", "Nöbetçi Kutusu", "Tıkla: başka birini seç, — boşaltır. Sürükle: başka bir hücreyle yer değiştir; yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği ya da ücret sırası bozulur, kırmızı kural bozulur (bırakırsan yine de taşınır, nöbet sabitlenir ve yeni liste yapılır). Sağ tık: sabitle, Listeyi Oluştur korur."],
   ["#liste tr.tatil", "Resmi Tatil", "Resmi tatil günü: Pazar gibi 2 ödeme puanı sayılır. Ayarlar › Genel'den kapatılabilir."],
   ["#liste tr.arife", "Arife", "Arife günü: yarım gün tatil, normal gün gibi sayılır."],
   ["#liste tr.hs", "Hafta Sonu", "Cumartesi 3, Pazar 2 ödeme puanı."],

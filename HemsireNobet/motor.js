@@ -640,8 +640,9 @@
     if (gSonra.some((c, i) => c > gOnce[i])) neden.push(["grup", -1]);
     const istekBoz = kisiler.filter((p, i) => sonra[i].istek > once[i].istek);
     istekBoz.forEach((p) => neden.push(["istek", p]));
-    const renk = neden.some((x) => x[0] !== "istek") ? "kirmizi" : istekBoz.length >= 2 ? "turuncu" : istekBoz.length === 1 ? "sari" : "yesil";
-    return { renk, neden, engel: neden.some((x) => x[0] === "kural" || x[0] === "grup") };
+    const sert = neden.some((x) => x[0] === "kural" || x[0] === "grup");
+    const renk = sert ? "kirmizi" : istekBoz.length >= 2 || neden.some((x) => x[0] === "ucret") ? "turuncu" : istekBoz.length === 1 ? "sari" : "yesil";
+    return { renk, neden, engel: false, sert };
   }
 
   function takasAnaliz(v, a, d, yer) {
