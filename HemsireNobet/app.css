@@ -247,6 +247,28 @@ table.liste td.duz { color: var(--tk-text); font-weight: var(--tk-fw-semi); }
 .sec:active { background: var(--tk-surface); color: var(--tk-renk-1); }
 .sec[data-kotu="1"] { color: var(--tk-warning); }
 table.liste .sec { min-height: 0; }
+[data-takas="yesil"] { --takas: color-mix(in srgb, var(--tk-success) 28%, transparent); }
+[data-takas="sari"] { --takas: color-mix(in srgb, var(--tk-warning) 32%, transparent); }
+[data-takas="turuncu"] { --takas: color-mix(in srgb, color-mix(in srgb, var(--tk-danger) 50%, var(--tk-warning)) 36%, transparent); }
+[data-takas="kirmizi"] { --takas: color-mix(in srgb, var(--tk-danger) 28%, transparent); }
+table.liste td.hucre.kaynak, table.cetele td.kaynak { outline: var(--tk-focus-w) solid var(--tk-renk-1); outline-offset: calc(-1 * var(--tk-focus-w)); }
+table.liste td.hucre[data-pin="1"] { outline: var(--tk-border-w) solid var(--tk-renk-1); outline-offset: calc(-1 * var(--tk-border-w)); }
+table.liste td.hucre[data-pin="1"] .sec { color: var(--tk-renk-1); }
+table.liste td.hucre.vurgu { background-image: linear-gradient(color-mix(in srgb, var(--tk-renk-2) 32%, transparent), color-mix(in srgb, var(--tk-renk-2) 32%, transparent)); }
+table.liste tr.vurgu-gun td { background-image: linear-gradient(color-mix(in srgb, var(--tk-renk-2) 16%, transparent), color-mix(in srgb, var(--tk-renk-2) 16%, transparent)); }
+table.cetele.etk td.vurgu, table.cetele.etk tr.vurgu td { background-image: linear-gradient(color-mix(in srgb, var(--tk-renk-2) 16%, transparent), color-mix(in srgb, var(--tk-renk-2) 16%, transparent)); }
+table.cetele.etk .ad-dgm[aria-pressed="true"] { color: var(--tk-renk-1); }
+table.cetele.etk .gun-dgm { min-height: 0; text-align: center; font-weight: inherit; }
+table.cetele.etk td.tasin { cursor: grab; }
+table.liste td.hucre[data-takas], table.cetele.etk td.gh[data-takas] { background-image: linear-gradient(var(--takas), var(--takas)); }
+body.suruk, body.suruk * { cursor: grabbing; user-select: none; }
+.kayit-grup { display: inline-flex; flex-wrap: wrap; align-items: center; min-width: 0; }
+.kayit-etiket { font-size: var(--tk-fs-1); color: var(--tk-text-label); padding: 0 var(--tk-sp-1); }
+.kayit-dgm { overflow: hidden; }
+.kayit-dgm::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--tk-renk-1) 32%, transparent); transform: scaleX(var(--dolum, 0)); transform-origin: left; pointer-events: none; }
+.kayit-dgm[data-tur="sil"]::after { background: color-mix(in srgb, var(--tk-danger) 32%, transparent); }
+.kayit-dgm[data-dolu="1"] { color: var(--tk-renk-1); box-shadow: inset 0 0 0 var(--tk-border-w) var(--tk-renk-1); }
+.kayit-dgm[data-dolu="0"] { color: var(--tk-text-label); }
 .sec option { background: var(--tk-surface); color: var(--tk-text); }
 
 .bolum-baslik { margin: 0; font-size: var(--tk-fs-2); font-weight: var(--tk-fw-semi); line-height: var(--tk-lh-heading); color: var(--tk-text); }

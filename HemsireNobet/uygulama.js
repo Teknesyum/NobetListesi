@@ -86,6 +86,9 @@ let KAPSAM_ACIK = false;
 const HG_GRUP = [0, 0, 0, 1, 2, 3, 4];
 let GD = { aylar: [], detay: {} };
 let GSEC = null;
+let KAYITLAR = [null, null, null];
+let VURGU_KISI = null;
+let VURGU_GUN = null;
 
 function gecmisAyarOku() {
   const g = oku("gecmis") || {};
@@ -197,7 +200,8 @@ function yukle(y, a) {
   V = {
     yil: y, ay: a, kisi: (kayit && kayit.kisi) || (kadro && kadro.kisi) || taban.kisi,
     tatil: AYAR.resmiTatil ? TATIL.tamGunler(y, a) : [], kisiler, zorunlu: !!zor, kural,
-    ozel: (kayit && kayit.ozel) || [], onceki: [], gecmis: null, istekCarpan: null
+    ozel: (kayit && kayit.ozel) || [], onceki: [], gecmis: null, istekCarpan: null,
+    pin: (kayit && kayit.pin) || []
   };
   gecmisAyarOku();
   V.gecmis = gecmisHesapla(y, a);
@@ -214,12 +218,15 @@ function yukle(y, a) {
   ALTTOPLAM = (kayit && kayit.altToplam) || ALT.length;
   SEC = (kayit && kayit.sec) || 0;
   ESKI = !!(kayit && kayit.eski && L);
+  KAYITLAR = (kayit && kayit.kayitlar) || [null, null, null];
+  VURGU_KISI = null;
+  VURGU_GUN = null;
   OZEL_GORULDU = false;
   GSEC = null;
 }
 
 function sakla() {
-  W.veri.yaz(ayAnahtar(V.yil, V.ay), JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler, zorunlu: V.zorunlu, zs: 2, kural: V.kural, ozel: V.ozel, tatil: V.tatil, liste: L, tohum: TOHUM, alt: ALT, altToplam: ALTTOPLAM, sec: SEC, eski: ESKI }));
+  W.veri.yaz(ayAnahtar(V.yil, V.ay), JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler, zorunlu: V.zorunlu, zs: 2, kural: V.kural, ozel: V.ozel, tatil: V.tatil, liste: L, tohum: TOHUM, alt: ALT, altToplam: ALTTOPLAM, sec: SEC, eski: ESKI, pin: V.pin, kayitlar: KAYITLAR }));
   W.veri.yaz("kadro", JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler.map(k => ({ ad: k.ad, nobet: k.nobet, izin: [], istemiyor: [], istiyor: [] })), zorunlu: V.zorunlu, zs: 2, kural: V.kural }));
   W.veri.yaz("son", JSON.stringify({ yil: V.yil, ay: V.ay }));
 }
@@ -359,6 +366,83 @@ function ayPanelCiz() {
 let LKEY = "";
 const SECLER = [];
 
+const NEDEN = {
+  kural: p => V.kisiler[p].ad + ": kural bozulur",
+  istek: p => V.kisiler[p].ad + ": isteği bozulur",
+  ucret: () => "Ücret sırası bozulur: fazla nöbet tutan daha az puan alır",
+  grup: () => "Gün grubu kuralı bozulur",
+  pin: () => "Sabitlenmiş hücre",
+  ayni: () => "O gün zaten nöbetçi"
+};
+const nedenMetin = n => n.map(([t, p]) => NEDEN[t](p)).join(" · ");
+
+function surukle(e, basla, birak, tik) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const x0 = e.clientX, y0 = e.clientY;
+  let aktif = false;
+  const mm = ev => {
+    if (!aktif && Math.hypot(ev.clientX - x0, ev.clientY - y0) > 4) { aktif = true; document.body.classList.add("suruk"); basla(); }
+  };
+  const mu = ev => {
+    document.removeEventListener("mousemove", mm, true);
+    document.removeEventListener("mouseup", mu, true);
+    document.body.classList.remove("suruk");
+    if (aktif) birak(ev.target); else if (tik) tik();
+  };
+  document.addEventListener("mousemove", mm, true);
+  document.addEventListener("mouseup", mu, true);
+}
+
+function takasTemizle() {
+  document.querySelectorAll("[data-takas]").forEach(x => { delete x.dataset.takas; x.removeAttribute("title"); });
+  document.querySelectorAll(".kaynak").forEach(x => x.classList.remove("kaynak"));
+}
+
+function takasIsaretle(td, r) {
+  td.dataset.takas = r.renk;
+  td.title = r.neden.length ? nedenMetin(r.neden) : "Sorun yok";
+}
+
+function sonucUygula(r, yeni, mesaj) {
+  if (!r) return;
+  if (r.engel) { toast("Olmaz: " + nedenMetin(r.neden), "warning"); return; }
+  L = yeni();
+  degisti();
+  ciz();
+  toast(mesaj() + (r.neden.length ? " Uyarı: " + nedenMetin(r.neden) : ""), r.renk === "yesil" ? "success" : "warning");
+}
+
+function hucreSurukle(e, d, y) {
+  if (!L || CALISIYOR || !L[d] || L[d][y] === undefined) return;
+  const kaynak = SECLER[d][y].parentElement;
+  let sonuc = [];
+  surukle(e, () => {
+    kaynak.classList.add("kaynak");
+    sonuc = MOTOR.takasAnaliz(V, L, d, y);
+    sonuc.forEach(r => takasIsaretle(SECLER[r.d][r.y].parentElement, r));
+  }, hedef => {
+    const td = hedef && hedef.closest && hedef.closest("td.hucre");
+    takasTemizle();
+    if (!td) return;
+    const r = sonuc.find(x => x.d === +td.dataset.d && x.y === +td.dataset.y);
+    sonucUygula(r, () => MOTOR.takasYap(L, d, y, r.d, r.y), () => tarihMetin(d) + " ile " + tarihMetin(r.d) + " yer değiştirdi.");
+  }, () => {
+    const s = SECLER[d][y];
+    s.focus();
+    try { s.showPicker(); } catch (x) {}
+  });
+}
+
+function pinDegistir(d, y) {
+  if (!L || CALISIYOR || !L[d] || L[d][y] === undefined) return;
+  const i = V.pin.findIndex(x => x[0] === d && x[1] === y);
+  if (i >= 0) V.pin.splice(i, 1); else V.pin.push([d, y, V.kisiler[L[d][y]].ad]);
+  sakla();
+  listeDoldur(L, false);
+  toast(i >= 0 ? "Sabitleme kaldırıldı." : "Sabitlendi: Listeyi Oluştur bu hücreyi korur.", "info", 3000);
+}
+
 function listeCiz() {
   const G = MOTOR.gunSayisi(V);
   $("#baslik").textContent = (AYLAR[V.ay - 1] + " " + V.yil + " Ameliyathane Hemşire Nöbet Listesi").toLocaleUpperCase("tr");
@@ -393,11 +477,16 @@ function listeCiz() {
         const v = +s.value;
         L[d] = L[d] || [];
         if (v < 0) L[d].splice(y, 1); else L[d][y] = v;
+        V.pin = V.pin.filter(x => !(x[0] === d && x[1] === y));
         degisti();
         ciz();
       };
       SECLER[d][y] = s;
       const td = el("td", { className: "hucre" });
+      td.dataset.d = d;
+      td.dataset.y = y;
+      td.addEventListener("mousedown", e => hucreSurukle(e, d, y));
+      td.addEventListener("contextmenu", e => { e.preventDefault(); pinDegistir(d, y); });
       td.append(s);
       tr.append(td);
     }
@@ -409,6 +498,7 @@ function listeDoldur(liste, oniz) {
   listeCiz();
   const G = MOTOR.gunSayisi(V);
   const H = liste && !oniz ? MOTOR.hazirla(V) : null;
+  let s0;
   for (let d = 1; d <= G; d++) {
     for (let y = 0; y < V.kisi; y++) {
       const s = SECLER[d][y];
@@ -417,27 +507,57 @@ function listeDoldur(liste, oniz) {
       s.disabled = !L || CALISIYOR;
       const kotu = H && p !== undefined && (H.yok[p].has(d) || H.istemez[p].has(d) || (d > 1 && liste[d - 1] && liste[d - 1].includes(p)));
       if (kotu) s.dataset.kotu = "1"; else delete s.dataset.kotu;
+      const td = s.parentElement;
+      const pin = !oniz && liste === L && L && V.pin.some(x => x[0] === d && x[1] === y);
+      if (pin) td.dataset.pin = "1"; else delete td.dataset.pin;
+      td.classList.toggle("vurgu", !oniz && VURGU_KISI !== null && p === VURGU_KISI);
     }
+    s0 = SECLER[d][0];
+    if (s0) s0.closest("tr").classList.toggle("vurgu-gun", VURGU_GUN !== null && (MOTOR.haftaGunu(V, d) + 6) % 7 === VURGU_GUN);
   }
 }
 
-function ceteleTablo(satirlar, gecmisVar) {
-  const t = el("table", { className: "tablo cetele" });
+function ceteleTablo(satirlar, gecmisVar, etk) {
+  const t = el("table", { className: "tablo cetele" + (etk ? " etk" : "") });
   const b = el("tr");
   b.append(el("th", { scope: "col", textContent: "Ad" }));
-  CETELE_AD.forEach((m, i) => { const th = el("th", { scope: "col", textContent: m }); if (i >= 5) th.className = "hs"; b.append(th); });
+  CETELE_AD.forEach((m, i) => {
+    const th = el("th", { scope: "col" });
+    if (etk) {
+      const g = el("button", { type: "button", className: "ad-dgm gun-dgm", textContent: m });
+      g.setAttribute("aria-pressed", String(VURGU_GUN === i));
+      g.onclick = () => { VURGU_GUN = VURGU_GUN === i ? null : i; listeDoldur(L, false); ceteleCiz(); };
+      th.append(g);
+    } else th.textContent = m;
+    if (i >= 5) th.className = "hs";
+    b.append(th);
+  });
   b.append(el("th", { scope: "col", textContent: "NÖBET" }));
   if (gecmisVar) b.append(el("th", { scope: "col", textContent: "GEÇMİŞ" }));
   t.append(b);
   const top = [0, 0, 0, 0, 0, 0, 0];
   let tn = 0, tp = 0;
-  satirlar.forEach(r => {
+  satirlar.forEach((r, ri) => {
     const tr = el("tr");
-    tr.append(el("td", { className: "ad", textContent: r.ad }));
+    if (etk) {
+      const td = el("td", { className: "ad" });
+      const a = el("button", { type: "button", className: "ad-dgm", textContent: r.ad });
+      a.setAttribute("aria-pressed", String(VURGU_KISI === ri));
+      a.onclick = () => { VURGU_KISI = VURGU_KISI === ri ? null : ri; listeDoldur(L, false); ceteleCiz(); };
+      td.append(a);
+      tr.append(td);
+      if (VURGU_KISI === ri) tr.classList.add("vurgu");
+    } else tr.append(el("td", { className: "ad", textContent: r.ad }));
     r.hg.forEach((x, i) => {
       top[i] += x;
       const td = el("td", { textContent: String(x) });
-      td.className = (x ? "" : "sifir") + (i >= 5 ? " hs" : "");
+      td.className = (x ? "" : "sifir") + (i >= 5 ? " hs" : "") + (etk ? " gh" : "");
+      if (etk) {
+        td.dataset.q = ri;
+        td.dataset.i = i;
+        if (x && L && !CALISIYOR) { td.classList.add("tasin"); td.addEventListener("mousedown", e => verSurukle(e, ri, i)); }
+      }
+      if (etk && VURGU_GUN === i) td.classList.add("vurgu");
       tr.append(td);
     });
     tn += r.n;
@@ -455,6 +575,22 @@ function ceteleTablo(satirlar, gecmisVar) {
   if (gecmisVar) tr.append(el("td", {}));
   t.append(tr);
   return t;
+}
+
+function verSurukle(e, p, i) {
+  let sonuc = [];
+  const tablo = e.currentTarget.closest("table");
+  e.currentTarget.classList.add("kaynak");
+  surukle(e, () => {
+    sonuc = MOTOR.verAnaliz(V, L, p, (i + 1) % 7);
+    sonuc.forEach(r => { const td = tablo.querySelector('td.gh[data-q="' + r.q + '"][data-i="' + i + '"]'); if (td) takasIsaretle(td, r); });
+  }, hedef => {
+    const td = hedef && hedef.closest && hedef.closest("td.gh");
+    takasTemizle();
+    if (!td || +td.dataset.i !== i) return;
+    const r = sonuc.find(x => x.q === +td.dataset.q);
+    sonucUygula(r, () => MOTOR.verYap(L, r.d, r.y, r.q), () => V.kisiler[p].ad + " → " + V.kisiler[r.q].ad + ": " + tarihMetin(r.d) + " nöbeti verildi.");
+  }, () => takasTemizle());
 }
 
 function ceteleCiz() {
@@ -475,8 +611,9 @@ function ceteleCiz() {
     };
   });
   const kap = el("div", { className: "istek-kap" });
-  kap.append(basYardim(ceteleTablo(rows, true), CETELE_BAS));
+  kap.append(basYardim(ceteleTablo(rows, true, true), CETELE_BAS));
   p.append(kap);
+  if (L) p.append(yardim("Ada tıkla: nöbetleri listede yanar. Gün başlığına tıkla: o günler yanar. Bir gün sayısını başka birinin aynı sütununa sürükle: o günün nöbetini ona ver."));
   if (!L) p.append(yardim("Liste henüz oluşturulmadı. Üstteki Listeyi Oluştur düğmesine bas."));
   p.append(yardim("Her sütun o gün tutulan nöbet sayısı. NÖBET: nöbet / ödeme puanı (Cuma 2, Cumartesi 3, Pazar ve tatil 2). GEÇMİŞ: önceki aylarda hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan."));
   const b = yd(el("button", { type: "button", className: "dgm", textContent: "Geçmiş Verileri İncele" }), "Geçmiş Verileri İncele", "Ayarlar › Geçmiş sekmesini açar: önceki ayların çetelesi, hangi ayların hesaba katıldığı ve elle ay ekleme orada.");
@@ -1461,10 +1598,14 @@ const YARDIM = [
   ["#btnUret", "Listeyi Oluştur", "Alternatifleri dener, en adilini seçer. Çalışırken basarsan durur."],
   ["#durum", "Durum", "Listenin kurallara uyup uymadığı. Ayrıntı Sorunlar sekmesinde."],
   ["#ilerleme", "İlerleme", "Kaç alternatifin denendiği ve kalan süre."],
+  [".kayit-dgm", "Kayıt", "Tıkla: bu kaydı yükle. Sol tuşla 1 saniye basılı tut: şimdiki listeyi buraya kaydet. Sağ tuşla 1 saniye basılı tut: kaydı sil. Dolu kayıt renkli; üzerinde durunca tarih ve saati görünür."],
+  ["table.cetele.etk td.ad .ad-dgm", "İsim", "Tıkla: bu kişinin nöbetleri listede yanar. Bir daha tıkla: söner."],
+  ["table.cetele.etk .gun-dgm", "Gün", "Tıkla: listede bu günler yanar. Bir daha tıkla: söner."],
+  ["table.cetele.etk td.tasin", "Nöbet Ver", "Başka birinin aynı sütununa sürükle: o günün nöbetini ona ver. Sürüklerken yeşil sorunsuz, sarı bir kişinin isteği, turuncu iki kişinin isteği bozulur, kırmızı kural bozulur."],
   ["#btnKopya", "Excel'e Kopyala", "Listeyi panoya kopyalar, Excel'e yapıştırılır."],
   ["#btnCsv", "CSV Kaydet", "Listeyi CSV dosyası olarak kaydeder."],
   ["#btnYazdir", "Yazdır", "Yalnız listeyi yazdırır."],
-  ["#liste", "Nöbet Listesi", "Ayın her günü ve nöbetçileri. Kutudan elle değiştirebilirsin; uyarı renkli kutu istemediği güne ya da art arda nöbete düşmüş demek. Pembe çerçeve: alternatif önizlemesi."],
+  ["#liste", "Nöbet Listesi", "Tıkla: kişiyi seç. Sürükle: başka bir hücreyle yer değiştir; sürüklerken yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği bozulur, kırmızı kural bozulur. Sağ tık: hücreyi sabitle, Listeyi Oluştur onu korur. Uyarı renkli yazı istemediği güne ya da art arda nöbete düşmüş demek."],
   ["table.istek .ad-dgm", "İsim", "Tıkla: bütün ayı ✗ yap. Bir daha tıkla: geri al."],
   ["table.istek .hc", "İstek Kutusu", "Sol tık ✓, sağ tık ✗, aynı tık boşaltır. Sürükleyerek boya. Sol Ctrl + tık: o haftanın Pzt–Cum günleri ✗."],
   ["#btnIstekSifir", "Tüm İstekleri Sıfırla", "Bu ayın bütün ✓ ve ✗ işaretlerini siler. Yanlışlıkla silinmesin diye iki kez basılır: ilk basışta düğme onay ister, 3 saniye içinde bir daha basarsan siler."],
@@ -1487,7 +1628,7 @@ const YARDIM = [
   ["#sk-gecmis, #p-gecmis", "Geçmiş", "Önceki ayların çetelesi; hangi ayların hesaba katılacağı."],
   ["#sk-genel, #p-genel", "Genel", "Güncelleme, Yeşil Yol, rehber, resmi tatil, alternatif sayısı."],
   ["#sk-hakkinda, #p-hakkinda", "Hakkında", "Programın tanıtımı ve kullanımı."],
-  ["#liste select", "Nöbetçi Kutusu", "Bu gün bu sırada nöbet tutan kişi. Kutuyu açıp başka birini seçersen liste elle değişir; — kutuyu boşaltır. Kural dışı kalan kutu uyarı renginde görünür."],
+  ["#liste select", "Nöbetçi Kutusu", "Tıkla: başka birini seç, — boşaltır. Sürükle: başka bir hücreyle yer değiştir; yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği bozulur, kırmızı kural bozulur. Sağ tık: sabitle, Listeyi Oluştur korur."],
   ["#liste tr.tatil", "Resmi Tatil", "Resmi tatil günü: Pazar gibi 2 ödeme puanı sayılır. Ayarlar › Genel'den kapatılabilir."],
   ["#liste tr.arife", "Arife", "Arife günü: yarım gün tatil, normal gün gibi sayılır."],
   ["#liste tr.hs", "Hafta Sonu", "Cumartesi 3, Pazar 2 ödeme puanı."],
@@ -1581,7 +1722,72 @@ function simdiMetni() {
   $("#ipucuBar").hidden = !(AYAR.rehber && !AYAR.yardimGoruldu);
 })();
 
+function kayitCiz() {
+  document.querySelectorAll(".kayit-dgm").forEach((b, i) => {
+    const k = KAYITLAR[i];
+    b.dataset.dolu = k ? "1" : "0";
+    b.title = k ? "Kayıt " + (i + 1) + ": " + new Date(k.t).toLocaleString("tr-TR") : "Kayıt " + (i + 1) + ": boş";
+  });
+}
+
+function kayitIslem(i, tur) {
+  if (tur === "yukle") {
+    const k = KAYITLAR[i];
+    if (!k) { toast("Kayıt " + (i + 1) + " boş. Kaydetmek için 1 saniye sol tuşla basılı tut.", "info"); return; }
+    if (CALISIYOR) return;
+    L = kopya(k.liste);
+    V.pin = kopya(k.pin || []);
+    ESKI = false;
+    sakla();
+    ciz();
+    durumCiz();
+    toast("Kayıt " + (i + 1) + " yüklendi.", "success", 3000);
+  } else if (tur === "kaydet") {
+    if (!L) { toast("Önce listeyi oluştur.", "info"); return; }
+    KAYITLAR[i] = { t: new Date().toISOString(), liste: kopya(L), pin: kopya(V.pin) };
+    sakla();
+    kayitCiz();
+    toast("Kayıt " + (i + 1) + " kaydedildi.", "success", 3000);
+  } else {
+    if (!KAYITLAR[i]) return;
+    KAYITLAR[i] = null;
+    sakla();
+    kayitCiz();
+    toast("Kayıt " + (i + 1) + " silindi.", "info", 3000);
+  }
+}
+
+document.querySelectorAll(".kayit-dgm").forEach((b, i) => {
+  let bas = null;
+  const bitir = () => { if (bas) cancelAnimationFrame(bas.raf); bas = null; b.style.setProperty("--dolum", "0"); delete b.dataset.tur; };
+  b.addEventListener("contextmenu", e => e.preventDefault());
+  b.addEventListener("mousedown", e => {
+    if (e.button !== 0 && e.button !== 2) return;
+    e.preventDefault();
+    const tur = e.button === 0 ? "kaydet" : "sil";
+    b.dataset.tur = tur;
+    const t0 = performance.now();
+    bas = { tur, bitti: false, raf: 0 };
+    const ad = () => {
+      if (!bas) return;
+      const o = Math.min(1, (performance.now() - t0) / 1000);
+      b.style.setProperty("--dolum", String(o));
+      if (o >= 1) { bas.bitti = true; kayitIslem(i, tur); return; }
+      bas.raf = requestAnimationFrame(ad);
+    };
+    bas.raf = requestAnimationFrame(ad);
+  });
+  b.addEventListener("mouseup", e => {
+    const kisa = bas && !bas.bitti && bas.tur === "kaydet" && e.button === 0;
+    bitir();
+    if (kisa) kayitIslem(i, "yukle");
+  });
+  b.addEventListener("mouseleave", bitir);
+  b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); kayitIslem(i, "yukle"); } });
+});
+
 function ciz() {
+  kayitCiz();
   listeDoldur(L, false);
   $("#listePnl").dataset.oniz = "0";
   $("#onizYazi").textContent = "";
