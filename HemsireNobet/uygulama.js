@@ -443,6 +443,28 @@ function pinDegistir(d, y) {
   toast(i >= 0 ? "Sabitleme kaldırıldı." : "Sabitlendi: Listeyi Oluştur bu hücreyi korur.", "info", 3000);
 }
 
+function nobetSayac(k, sonra) {
+  const sp = el("span", { className: "sayac nobet-sayac" });
+  sp.dataset.k = String(V.kisiler.indexOf(k));
+  const eksi = el("button", { type: "button", className: "dgm dgm-kare", textContent: "−" });
+  const deg = el("span", { className: "sayac-deger", textContent: String(k.nobet) });
+  const arti = el("button", { type: "button", className: "dgm dgm-kare", textContent: "+" });
+  eksi.setAttribute("aria-label", k.ad + " nöbet sayısını azalt");
+  arti.setAttribute("aria-label", k.ad + " nöbet sayısını artır");
+  deg.setAttribute("aria-live", "polite");
+  eksi.disabled = k.nobet <= 0;
+  const yaz = v => {
+    k.nobet = Math.max(0, v);
+    document.querySelectorAll('.nobet-sayac[data-k="' + sp.dataset.k + '"]').forEach(x => { x.querySelector(".sayac-deger").textContent = String(k.nobet); x.querySelector(".dgm-kare").disabled = k.nobet <= 0; });
+    degisti();
+    sonra();
+  };
+  eksi.onclick = () => yaz(k.nobet - 1);
+  arti.onclick = () => yaz(k.nobet + 1);
+  sp.append(eksi, deg, arti);
+  return sp;
+}
+
 function listeCiz() {
   const G = MOTOR.gunSayisi(V);
   $("#baslik").textContent = (AYLAR[V.ay - 1] + " " + V.yil + " Ameliyathane Hemşire Nöbet Listesi").toLocaleUpperCase("tr");
@@ -815,15 +837,9 @@ function kadroCiz() {
   V.kisiler.forEach(k => {
     const tr = el("tr");
     tr.append(el("td", { className: "ad", textContent: k.ad }));
-    [["nobet", "nöbet sayısı"]].forEach(([a, e]) => {
-      const i = el("input", { className: "tk-input ince dar", type: "number", min: "0", value: k[a] });
-      i.setAttribute("aria-label", k.ad + " " + e);
-      yd(i, "Nöbet Sayısı", "Bu kişinin bu ay tutacağı nöbet sayısı. Değiştirince toplam aşağıda yeniden hesaplanır; listeyi yenilemek için Listeyi Oluştur'a bas.");
-      i.onchange = () => { k[a] = Math.max(0, +i.value || 0); i.value = k[a]; degisti(); kadroUyari(); const q = $('#p-istek input[data-k="' + V.kisiler.indexOf(k) + '"]'); if (q) q.value = k[a]; };
-      const td = el("td");
-      td.append(i);
-      tr.append(td);
-    });
+    const td = el("td", { className: "nobet-kutu" });
+    td.append(nobetSayac(k, () => kadroUyari()));
+    tr.append(td);
     tr.append(el("td", { className: "gec", textContent: f1(h0.pTaban[V.kisiler.indexOf(k)]) }));
     t.append(tr);
   });
@@ -953,12 +969,7 @@ function istekCiz() {
     adTd.append(ad);
     tr.append(adTd);
     const nTd = el("td", { className: "nobet-kutu" });
-    const nIn = el("input", { className: "tk-input ince dar", type: "number", min: "0", value: k.nobet });
-    nIn.setAttribute("aria-label", k.ad + " nöbet sayısı");
-    nIn.dataset.k = String(V.kisiler.indexOf(k));
-    yd(nIn, "Nöbet Sayısı", "Bu kişinin bu ay tutacağı nöbet sayısı. Ayarlar › Kadro'daki sayıyla aynıdır. Değiştirince Listeyi Oluştur'a bas.");
-    nIn.onchange = () => { k.nobet = Math.max(0, Math.round(+nIn.value) || 0); nIn.value = k.nobet; degisti(); kadroCiz(); };
-    nTd.append(nIn);
+    nTd.append(nobetSayac(k, () => kadroUyari()));
     const top = yd(el("td", { className: "top" }), "Toplam", "Kişinin bu aydaki ✓ istiyor ve ✗ istemiyor sayısı. En az istekte bulunanın isteği önceliklidir.");
     const hcler = [];
     const tumMu = () => k.istemiyor.length >= G;
@@ -1446,8 +1457,8 @@ function genelCiz() {
     anahtar(AYAR.onayIste, "", v => { ayarYaz({ onayIste: v }); genelCiz(); }));
   sat("Yeşil Yol", "Sıradaki adımı 2 saniyelik yeşil bir çerçeveyle gösterir.",
     anahtar(AYAR.yesilYol, "", v => { ayarYaz({ yesilYol: v }); if (!v) yolTemizle(); genelCiz(); }));
-  sat("Rehber", "Listeyi Oluştur'a ilk basışta önce Özel Talepler'e yönlendirir.",
-    anahtar(AYAR.rehber, "", v => { ayarYaz({ rehber: v, rehberSoruldu: true }); $("#rehberBar").hidden = true; genelCiz(); }));
+  sat("Rehber", "Açılışta sağ Ctrl yardımını hatırlatan yeşil ipucunu gösterir ve Listeyi Oluştur'a ilk basışta önce Özel Talepler'e yönlendirir.",
+    anahtar(AYAR.rehber, "", v => { ayarYaz({ rehber: v, rehberSoruldu: true }); if (!v) $("#ipucuBar").hidden = true; genelCiz(); }));
   sat("Resmi Tatilleri Say", "Açıkken resmi tatiller Pazar gibi sayılır (ödeme puanı 2). 100 yıllık takvim programın içinde.",
     anahtar(AYAR.resmiTatil, "", v => { ayarYaz({ resmiTatil: v }); V.tatil = v ? TATIL.tamGunler(V.yil, V.ay) : []; degisti(); genelCiz(); ciz(); }));
   sat("Alternatif Sayısı", "Kaç farklı liste denenip en iyisinin seçileceği. 300 çoğu ay için yeterli; 500 biraz daha adil, daha yavaş.",
@@ -1610,10 +1621,8 @@ const YARDIM = [
   ["table.istek .hc", "İstek Kutusu", "Sol tık ✓, sağ tık ✗, aynı tık boşaltır. Sürükleyerek boya. Sol Ctrl + tık: o haftanın Pzt–Cum günleri ✗."],
   ["#btnIstekSifir", "Tüm İstekleri Sıfırla", "Bu ayın bütün ✓ ve ✗ işaretlerini siler. Yanlışlıkla silinmesin diye iki kez basılır: ilk basışta düğme onay ister, 3 saniye içinde bir daha basarsan siler."],
   ["#btnOzelSonraki", "Sonraki: Özel Talepler", "İstekleri bitirdiysen bas; Özel Talepler sekmesine geçer."],
-  ["#ipucuBar", "Rehber İpucu", "Sağ Ctrl bir kez basılı tutulunca kaybolur. Ayarlar › Genel'de rehber kapalıysa hiç çıkmaz."],
-  ["#rehberDevam", "Rehberle Devam Et", "Sonraki aylarda da rehber yol gösterir: Listeyi Oluştur önce Özel Talepler'e yönlendirir."],
-  ["#rehberKapat", "Rehberi Kapat", "Rehber yönlendirmeyi bırakır. Ayarlar › Genel'den yeniden açılabilir."],
-  ["#rehberBar", "Rehber", "Rehberle devam edersen her ay önce Özel Talepler'e yönlendirilirsin."],
+  ["#ipucuBar", "Rehber İpucu", "Her açılışta görünür. Üstüne tıklayınca ya da herhangi bir Ctrl tuşuna basınca kapanır. Ayarlar › Genel'de rehber kapalıysa hiç çıkmaz."],
+  [".nobet-sayac .dgm-kare", "Nöbet Sayısı", "− azaltır, + artırır. Bu kişinin bu ay tutacağı nöbet sayısı; İstekler ve Ayarlar › Kadro'da aynıdır. Değiştirince Listeyi Oluştur'a bas."],
   ["#sk-istek, #p-istek", "1 · İstekler", "Kimin hangi gün nöbet istediği (✓) ya da istemediği (✗)."],
   ["#sk-ozel, #p-ozel", "2 · Özel Talepler", "Şu kişilere en az 1 Perşembe gibi talepler."],
   ["#sk-liste, #p-liste", "3 · Liste ve Çetele", "Oluşan liste ve herkesin haftagünlerine göre nöbet sayısı."],
@@ -1706,9 +1715,10 @@ function simdiMetni() {
   const kapat = () => { basili = false; balon.hidden = true; };
   document.addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; if (basili) goster(); }, true);
   document.addEventListener("keydown", e => {
+    if (e.code === "ControlRight" || e.code === "ControlLeft") $("#ipucuBar").hidden = true;
     if (e.code === "ControlRight") {
       if (!basili) { basili = true; goster(); }
-      if (!AYAR.yardimGoruldu) { ayarYaz({ yardimGoruldu: true }); $("#ipucuBar").hidden = true; }
+      if (!AYAR.yardimGoruldu) ayarYaz({ yardimGoruldu: true });
       e.preventDefault();
       return;
     }
@@ -1719,7 +1729,7 @@ function simdiMetni() {
     if (e.code === "ControlLeft") { SOLCTRL = false; const t = $("table.istek"); if (t && t._vurgula) t._vurgula(); }
   });
   window.addEventListener("blur", () => { kapat(); SOLCTRL = false; });
-  $("#ipucuBar").hidden = !(AYAR.rehber && !AYAR.yardimGoruldu);
+  $("#ipucuBar").hidden = !AYAR.rehber;
 })();
 
 function kayitCiz() {
@@ -1840,7 +1850,6 @@ function uret(zorla) {
   ESKI = false;
   yolTemizle();
   [...$("#toast").children].forEach(x => { if (x.textContent.startsWith("Rehber:")) x.remove(); });
-  $("#rehberBar").hidden = true;
   sekme("liste");
   ciz();
   durumCiz();
@@ -1869,8 +1878,7 @@ function uret(zorla) {
     ciz();
     if (!ALT.length) return;
     toast(ALTTOPLAM + " alternatiften en adili seçildi.", "success");
-    if (AYAR.rehber && !AYAR.rehberSoruldu) { $("#rehberBar").hidden = false; yol("#rehberDevam"); }
-    else yol("#btnYazdir");
+    yol("#btnYazdir");
   }, e => {
     CALISIYOR = false;
     ilerlemeGoster(null);
@@ -1922,8 +1930,7 @@ $("#btnCsv").onclick = async () => {
   if (yolu) toast("Kaydedildi: " + yolu, "success");
 };
 $("#btnYazdir").onclick = () => { if (!L) return toast("Önce listeyi oluştur.", "warning"); W.yazdir(); };
-$("#rehberDevam").onclick = () => { ayarYaz({ rehber: true, rehberSoruldu: true }); $("#rehberBar").hidden = true; genelCiz(); yol("#btnYazdir"); };
-$("#rehberKapat").onclick = () => { ayarYaz({ rehber: false, rehberSoruldu: true }); $("#rehberBar").hidden = true; genelCiz(); toast("Rehber kapatıldı. Ayarlar › Genel'den yeniden açabilirsin."); };
+$("#ipucuBar").onclick = () => { $("#ipucuBar").hidden = true; };
 
 (() => {
   aySiraKur();
