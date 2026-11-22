@@ -106,7 +106,7 @@ app.whenReady().then(() => {
   ipcMain.handle("pencere:yazdir", e => new Promise(ok => {
     const w = hedef(e);
     if (!w) return ok(false);
-    w.webContents.print({ silent: false, printBackground: true, landscape: false }, s => ok(s));
+    w.webContents.print({ silent: false, printBackground: true, landscape: true, pageSize: "A4" }, s => ok(s));
   }));
   ipcMain.handle("pencere:dosyaYaz", async (e, { ad, metin, tur }) => {
     const w = hedef(e);

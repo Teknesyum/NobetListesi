@@ -16,8 +16,8 @@
   const MONO = 20000;
 
   function monoCift(sp, pp, sq, pq) {
-    if (sp > sq && pp <= pq) return MONO * (pq - pp + 1);
-    if (sq > sp && pq <= pp) return MONO * (pp - pq + 1);
+    if (sp > sq && pp < pq) return MONO * (pq - pp);
+    if (sq > sp && pq < pp) return MONO * (pp - pq);
     return 0;
   }
 
@@ -33,6 +33,15 @@
       if (q !== x && q !== y) c += monoCift(sA[x], pA[x], sA[q], pA[q]) + monoCift(sA[y], pA[y], sA[q], pA[q]);
     }
     return c;
+  }
+
+  const YAY = 3000;
+
+  function yayCost(h, pA) {
+    if (!h.yayIdx) return 0;
+    let mx = -Infinity, mn = Infinity;
+    for (const p of h.yayIdx) { const r = pA[p] - h.odeme[p]; if (r > mx) mx = r; if (r < mn) mn = r; }
+    return mx - mn > 1.001 ? YAY * (mx - mn - 1) : 0;
   }
 
   function sayPay(h, a) {
@@ -68,6 +77,7 @@
     x.ardArda = x.ardArda !== false;
     x.istekDenge = !!x.istekDenge;
     x.odemeModu = x.odemeModu === "esit" ? "esit" : "puan";
+    x.dagitim = x.dagitim === "oran" ? "oran" : "para";
     const eski = !(+x.s >= 2);
     x.sonraBos = (Array.isArray(x.sonraBos) ? x.sonraBos : KURAL.sonraBos).map((r) => ({
       gun: ((+r.gun % 7) + 7) % 7, bos: (r.bos || []).map((b) => ((+b % 7) + 7) % 7),
@@ -123,6 +133,52 @@
   const nb = (k) => (k.nobet !== undefined ? k.nobet : k.min !== undefined ? k.min : 7);
   const od = (k) => (k.odeme !== undefined ? k.odeme : k.max !== undefined ? k.max : 11);
 
+  const BIRAK = [[0], [1], [2, 4], [3]];
+
+  function paylas(v, grupSay, ag, tumIzin) {
+    const n = v.kisiler.length;
+    const akt = v.kisiler.map((k, i) => !tumIzin[i]);
+    const nA = akt.filter(Boolean).length || 1;
+    const toplam = grupSay.reduce((a, c) => a + c, 0);
+    const f = toplam / nA;
+    const sayac = {};
+    v.kisiler.forEach((k, i) => { if (akt[i]) sayac[nb(k)] = (sayac[nb(k)] || 0) + 1; });
+    const taban = +Object.keys(sayac).sort((a, b) => sayac[b] - sayac[a] || b - a)[0] || 0;
+    const adil = grupSay.map((c) => c / nA);
+    const g = v.kisiler.map(() => [0, 0, 0, 0, 0]);
+    const az = [], cok = [], esit = [];
+    v.kisiler.forEach((k, i) => {
+      if (!akt[i]) return;
+      const x = nb(k);
+      if (x < taban) az.push(i); else if (x > taban) cok.push(i); else esit.push(i);
+    });
+    const kalan = grupSay.slice();
+    for (const i of az) {
+      const b = adil.slice();
+      let birak = nb(v.kisiler[i]) <= 0 ? f : Math.min(f, taban - nb(v.kisiler[i]));
+      for (const qs of BIRAK) {
+        if (birak <= 0) break;
+        const var_ = qs.reduce((a, q) => a + b[q], 0);
+        if (!var_) continue;
+        const al = Math.min(birak, var_);
+        for (const q of qs) b[q] -= (al * b[q]) / var_;
+        birak -= al;
+      }
+      g[i] = b;
+      for (let q = 0; q < 5; q++) kalan[q] -= b[q];
+    }
+    const N = cok.concat(esit);
+    if (!N.length) return null;
+    for (const i of N) g[i] = kalan.map((c) => c / N.length);
+    if (cok.length && esit.length) {
+      const s = (0.75 * esit.length) / N.length;
+      const q = kalan[0] >= s * cok.length ? 0 : 1;
+      for (const i of cok) g[i][q] += s;
+      for (const i of esit) g[i][q] -= (s * cok.length) / esit.length;
+    }
+    return { g, n: g.map((b) => b.reduce((a, c) => a + c, 0)), p: g.map((b) => b.reduce((a, c, q) => a + c * ag[q], 0)), taban, az, cok };
+  }
+
   function rng(tohum) {
     let s = tohum >>> 0 || 1;
     return function () {
@@ -161,11 +217,12 @@
     });
     const nbE = v.kisiler.map((k, i) => (tumIzin[i] ? 0 : nb(k)));
     const sn = nbE.reduce((a, x) => a + x, 0) || 1;
-    const nTaban = nbE.map((x) => (toplam * x) / sn);
-    const pTaban = nbE.map((x) => (toplamOde * x) / sn);
-    const gTaban = nbE.map((x) => grupSay.map((c) => (c * x) / sn));
+    const pay = kural.dagitim === "oran" ? null : paylas(v, grupSay, ag, tumIzin);
+    const nTaban = pay ? pay.n : nbE.map((x) => (toplam * x) / sn);
+    const pTaban = pay ? pay.p : nbE.map((x) => (toplamOde * x) / sn);
+    const gTaban = pay ? pay.g : nbE.map((x) => grupSay.map((c) => (c * x) / sn));
     const dev = v.kisiler.map(() => ({ n: 0, p: 0, g: [0, 0, 0, 0, 0] }));
-    const gec = gecmisKullan === false ? null : v.gecmis;
+    const gec = gecmisKullan === false || v.yalniz ? null : v.gecmis;
     if (gec) v.kisiler.forEach((k, i) => {
       const x = gec[k.ad];
       if (!x || tumIzin[i]) return;
@@ -215,7 +272,8 @@
     }
     return {
       pin,
-      kural, ag, sonra: sk.s, sonraBir: sk.bir, ard: kural.ardArda ? ZOR : 0, wP: kural.odemeModu === "esit" ? 0 : 2,
+      kural, ag, sonra: sk.s, sonraBir: sk.bir, ard: kural.ardArda ? ZOR : 0, wP: kural.odemeModu === "esit" ? 0 : pay ? 8 : 2, wN: pay ? 3 : 6, paylasim: pay,
+      yayIdx: pay ? v.kisiler.map((k, i) => i).filter((i) => !tumIzin[i] && !pay.az.includes(i)) : null,
       n, G, toplam, toplamOde, hedef, odeme, beklenen, yok, istemez, ister, onceki, grp, dev, nTaban, pTaban, agIster, tp, tipBek, wd,
       tumIzin, carpan, oz, gruplar: gAc, uy, gLim, gW, rel, gAcik,
       agIstemez,
@@ -272,7 +330,7 @@
     }
     if (ws) for (const [w, enAz] of oz) if (ws[w] < enAz) c += h.ozW * (enAz - ws[w]);
     for (const r of h.sonraBir) if (birBak(r, gun)) c += r.kesin ? ZOR : h.perHs;
-    c += 6 * (say - h.hedef[p]) ** 2;
+    c += h.wN * (say - h.hedef[p]) ** 2;
     c += h.wP * (pay - h.odeme[p]) ** 2;
     for (let q = 0; q < 5; q++) c += GW[q] * (gs[q] - h.beklenen[p][q]) ** 2;
     for (let t = 0; t < 3; t++) c += (ts[t] - h.tipBek[p][t]) ** 2;
@@ -292,7 +350,7 @@
     let c = 0;
     for (let p = 0; p < h.n; p++) c += kisiMaliyet(v, h, p, gun[p]);
     const sp = sayPay(h, a);
-    return c + gunMaliyet(h, a) + monoToplam(sp.sA, sp.pA);
+    return c + gunMaliyet(h, a) + monoToplam(sp.sA, sp.pA) + yayCost(h, sp.pA);
   }
 
   function secenek(v, tohum, itSay) {
@@ -356,7 +414,7 @@
     const gc = [0];
     for (let d = 1; d <= G; d++) gc[d] = gunCost(h, a[d]);
     const { sA, pA } = sayPay(h, a);
-    let c = kc.reduce((x, y) => x + y, 0) + gc.reduce((x, y) => x + y, 0) + monoToplam(sA, pA);
+    let c = kc.reduce((x, y) => x + y, 0) + gc.reduce((x, y) => x + y, 0) + monoToplam(sA, pA) + yayCost(h, pA);
     let it = 0;
     const yeniGc = (d, yer, p) => {
       if (!h.gAcik) return 0;
@@ -381,9 +439,9 @@
           const e2 = kisiMaliyet(v, h, yeni, gun[yeni]);
           const g1 = yeniGc(d, yer, yeni);
           const w = h.ag[h.grp[d]];
-          const m0 = monoIki(sA, pA, eski, yeni);
+          const m0 = monoIki(sA, pA, eski, yeni) + yayCost(h, pA);
           sA[eski]--; pA[eski] -= w; sA[yeni]++; pA[yeni] += w;
-          const m1 = monoIki(sA, pA, eski, yeni);
+          const m1 = monoIki(sA, pA, eski, yeni) + yayCost(h, pA);
           const fark = e1 + e2 - kc[eski] - kc[yeni] + g1 - gc[d] + m1 - m0;
           if (fark > 0) { sA[eski]++; pA[eski] += w; sA[yeni]--; pA[yeni] -= w; }
           if (fark <= 0) {
@@ -414,7 +472,7 @@
           const wf = h.ag[h.grp[d2]] - h.ag[h.grp[d]];
           let m0 = 0;
           let m1 = 0;
-          if (wf) { m0 = monoIki(sA, pA, eski, o2); pA[eski] += wf; pA[o2] -= wf; m1 = monoIki(sA, pA, eski, o2); }
+          if (wf) { m0 = monoIki(sA, pA, eski, o2) + yayCost(h, pA); pA[eski] += wf; pA[o2] -= wf; m1 = monoIki(sA, pA, eski, o2) + yayCost(h, pA); }
           const fark = e1 + e2 - kc[eski] - kc[o2] + g1 - gc[d] + g2 - gc[d2] + m1 - m0;
           if (fark > 0 && wf) { pA[eski] -= wf; pA[o2] += wf; }
           if (fark <= 0) {
@@ -625,12 +683,12 @@
   function degisimRenk(h, a, gun, sp, degis) {
     const kisiler = [...new Set(degis.map((x) => x[0]))];
     const once = kisiler.map((p) => kisiSorun(h, p, gun[p]));
-    const mOnce = kisiler.reduce((t, p) => t + monoKisi(sp.sA, sp.pA, p), 0);
+    const mOnce = kisiler.reduce((t, p) => t + monoKisi(sp.sA, sp.pA, p), 0) + yayCost(h, sp.pA);
     const gunler = [...new Set(degis.map((x) => x[1]))];
     const gOnce = gunler.map((d) => gunCost(h, a[d], true));
     for (const [p, d, var_] of degis) { gun[p][d] = var_; sp.sA[p] += var_ ? 1 : -1; sp.pA[p] += (var_ ? 1 : -1) * h.ag[h.grp[d]]; }
     const sonra = kisiler.map((p) => kisiSorun(h, p, gun[p]));
-    const mSonra = kisiler.reduce((t, p) => t + monoKisi(sp.sA, sp.pA, p), 0);
+    const mSonra = kisiler.reduce((t, p) => t + monoKisi(sp.sA, sp.pA, p), 0) + yayCost(h, sp.pA);
     const yeniA = gunler.map((d) => a[d].filter((p) => !degis.some((x) => x[0] === p && x[1] === d && !x[2])).concat(degis.filter((x) => x[1] === d && x[2]).map((x) => x[0])));
     const gSonra = yeniA.map((L) => gunCost(h, L, true));
     for (const [p, d, var_] of degis) { gun[p][d] = !var_; sp.sA[p] -= var_ ? 1 : -1; sp.pA[p] -= (var_ ? 1 : -1) * h.ag[h.grp[d]]; }
@@ -698,7 +756,7 @@
     return b;
   }
 
-  const M = { takasAnaliz, takasYap, verAnaliz, verYap, KURAL, kuralNorm, gunCost, TIP_AD, tip, AGIRLIK, GRUP_AD, analiz, GUN, KISA, gunSayisi, haftaGunu, grup, kur, kurAsenkron, rapor, maliyet, hazirla };
+  const M = { paylas, takasAnaliz, takasYap, verAnaliz, verYap, KURAL, kuralNorm, gunCost, TIP_AD, tip, AGIRLIK, GRUP_AD, analiz, GUN, KISA, gunSayisi, haftaGunu, grup, kur, kurAsenkron, rapor, maliyet, hazirla };
   if (typeof module !== "undefined") module.exports = M;
   else g.MOTOR = M;
 })(typeof window !== "undefined" ? window : globalThis);

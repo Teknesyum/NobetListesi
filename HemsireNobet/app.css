@@ -329,6 +329,7 @@ table.cetele td.ad { padding-right: var(--tk-sp-3); }
 #btnKapsam::after { content: "▾"; margin-left: var(--tk-sp-1); }
 #btnKapsam[aria-expanded="true"]::after { content: "▴"; }
 .cipler[hidden] { display: none; }
+.cipler.bag-sec, .cipler.gorunum { flex-wrap: nowrap; }
 
 .lejant { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tk-sp-1) var(--tk-sp-3); font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-text-label); }
 .lejant span { display: inline-flex; align-items: center; gap: var(--tk-sp-1); }
@@ -485,8 +486,20 @@ table.istek .ctrl { background-image: linear-gradient(var(--vurgu-3), var(--vurg
   * { transition: none !important; animation: none !important; }
 }
 
+.baski { display: none; }
+.baski.olc { display: block; position: fixed; left: 0; top: 0; visibility: hidden; width: max-content; }
+.baski-sira { display: flex; align-items: flex-start; gap: var(--tk-sp-3); }
+.baski-baslik { margin: 0 0 var(--tk-sp-2); text-align: center; font-size: var(--tk-fs-3); }
+.baski-alt { margin: 0 0 var(--tk-sp-1); font-size: var(--tk-fs-2); }
+.baski table { border-collapse: collapse; width: auto; height: auto; table-layout: auto; }
+.baski table th, .baski table td { height: auto; padding: 0 var(--tk-sp-1); border: var(--tk-border-w) solid CanvasText; white-space: nowrap; }
 @media print {
   :root { color-scheme: light; }
+  body > .cerceve { display: none !important; }
+  html, body { height: auto !important; min-height: 0 !important; }
+  .baski { display: block; color: CanvasText; background: Canvas; break-inside: avoid; }
+  .baski * { color: CanvasText !important; }
+  .baski table th, .baski table td { color: CanvasText; background: Canvas !important; height: auto; }
   html, body { background: Canvas; color: CanvasText; overflow: visible; }
   .cerceve { display: block; height: auto; border-radius: 0; background: Canvas; overflow: visible; }
   .tk-titlebar, .ust, .sekme-sira, .ipucu-bar, .icerik, .yardim-balon, .tk-toast-stack, .gnc-ort, .liste-bas .dgm, .oniz-yazi, .liste-bas .bosluk { display: none !important; }
@@ -500,5 +513,6 @@ table.istek .ctrl { background-image: linear-gradient(var(--vurgu-3), var(--vurg
   table.liste tr.hs td, table.liste tr.tatil td { font-weight: var(--tk-fw-semi); }
   .sec { color: CanvasText; padding: 0; background: transparent; }
   .sec[data-kotu="1"] { color: CanvasText; }
-  @page { size: A4 portrait; margin: 10mm; }
+  .baski table th, .baski table td { height: auto; padding: 0 var(--tk-sp-1); }
+  @page { size: A4 landscape; margin: 10mm; }
 }
