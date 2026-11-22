@@ -668,6 +668,17 @@ function verSurukle(e, p, i) {
   });
 }
 
+function sigdir() {
+  document.querySelectorAll("#p-liste .istek-kap").forEach(k => {
+    const t = k.querySelector("table");
+    if (!t) return;
+    t.style.zoom = "";
+    const g = k.clientWidth, w = t.offsetWidth;
+    if (g > 0 && w > g) t.style.zoom = String(Math.floor(g / w * 1000) / 1000);
+  });
+}
+window.addEventListener("resize", () => requestAnimationFrame(sigdir));
+
 const kabulMu = () => !!L && GA.aylar[ayKod(V.yil, V.ay)] === true;
 
 function bagCiz() {
@@ -720,6 +731,7 @@ function ceteleCiz() {
     const kap = el("div", { className: "istek-kap" });
     kap.append(genelTablo(genelSatir(true), false));
     p.append(kap);
+    requestAnimationFrame(sigdir);
     p.append(yardim(L ? "Kapsanan önceki aylar + bu ayın listesi. " + (kabulMu() ? "Bu ay kabul edildi; Genel Çetele sekmesi de bunu gösteriyor." : "Bu ay henüz kabul edilmedi: Listeyi Kabul Et'e basınca Genel Çetele bu hale gelir.") : "Liste henüz oluşturulmadı; yalnız önceki aylar görünüyor."));
     return;
   }
@@ -727,6 +739,7 @@ function ceteleCiz() {
   const kap = el("div", { className: "istek-kap" });
   kap.append(basYardim(ceteleTablo(rows, true, true), CETELE_BAS));
   p.append(kap);
+  requestAnimationFrame(sigdir);
   ceteleSon(p);
 }
 

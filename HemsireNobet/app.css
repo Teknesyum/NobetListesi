@@ -340,6 +340,9 @@ table.cetele td.ad { padding-right: var(--tk-sp-3); }
 .ornek-ism { border: var(--tk-border-w) solid var(--tk-warning); color: var(--tk-warning); text-align: center; line-height: var(--tk-sp-4); }
 
 .istek-kap { overflow: auto; min-height: 0; }
+#p-liste .istek-kap { overflow-x: hidden; }
+#p-liste table.cetele th, #p-liste table.cetele td { padding: 0 var(--tk-sp-1); }
+#p-liste table.cetele td.ad { padding-right: var(--tk-sp-2); }
 table.istek { width: 100%; border-collapse: collapse; table-layout: fixed; user-select: none; }
 table.istek col.c-ad { width: 10rem; }
 table.istek col.c-nobet { width: 4rem; }
