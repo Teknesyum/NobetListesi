@@ -364,3 +364,71 @@ table.kural td.kural-gun { white-space: nowrap; }
 .kadro-uyari[data-kotu="0"] { color: var(--tk-success); }
 .kural-ust .alan span { white-space: nowrap; }
 .kural-ust .tk-input { min-height: var(--tk-target-min); height: var(--tk-target-min); padding: 0 var(--tk-sp-1); font-size: var(--tk-fs-1); }
+
+.sayac { display: inline-flex; align-items: center; gap: var(--tk-sp-1); }
+.sayac-deger { min-width: var(--tk-target-min); text-align: center; color: var(--tk-text); font-weight: var(--tk-fw-semi); }
+.ay-dgm[data-dahil="1"] { border-color: var(--tk-success); box-shadow: inset 0 0 0 var(--tk-border-w) var(--tk-success), inset 0 calc(var(--tk-border-w) * -2) 0 var(--tk-success); }
+.gecmis-cizgi {
+  align-self: stretch;
+  width: calc(var(--tk-target-min) / 2);
+  min-height: var(--tk-btn-h);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tk-r);
+  background: linear-gradient(var(--tk-success), var(--tk-success)) center / var(--tk-sp-1) 100% no-repeat;
+  cursor: pointer;
+  transition: background-size var(--tk-t-instant) var(--tk-e-out);
+}
+.gecmis-cizgi:hover,
+.gecmis-cizgi:focus-visible { background-size: var(--tk-sp-2) 100%; }
+.gecmis-cizgi[hidden] { display: none; }
+.oniz-yazi { margin: 0; padding: var(--tk-sp-1) var(--tk-sp-2); font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-renk-2-text); }
+.oniz-yazi:empty { display: none; }
+.liste-pnl[data-oniz="1"] table.liste { outline: calc(var(--tk-border-w) * 2) dashed var(--tk-renk-2); outline-offset: calc(var(--tk-border-w) * -2); }
+table.istek tr.sat td,
+table.istek td.kol,
+table.istek th.kol { background: color-mix(in srgb, var(--tk-renk-2) 14%, transparent); }
+table.istek tr.sat td.kol { background: color-mix(in srgb, var(--tk-renk-2) 30%, transparent); }
+table.istek .hc { user-select: none; }
+.comez { display: grid; gap: var(--tk-sp-2); margin-top: var(--tk-sp-3); padding-top: var(--tk-sp-3); border-top: var(--tk-border-w) solid var(--tk-border); }
+.bolum-baslik { margin: 0; font-size: var(--tk-fs-2); line-height: var(--tk-lh-heading); color: var(--tk-text); }
+.comez-iki { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tk-sp-2); }
+.comez-liste { display: grid; align-content: start; gap: var(--tk-sp-2); padding: var(--tk-sp-2); border: var(--tk-border-w) solid var(--tk-border); border-radius: var(--tk-r); }
+.comez-liste[data-cz="1"] { border-color: var(--tk-renk-2); }
+.comez-liste h3 { margin: 0; font-size: var(--tk-fs-1); line-height: var(--tk-lh-heading); color: var(--tk-text-label); font-weight: var(--tk-fw-semi); }
+.comez-adlar { display: flex; flex-wrap: wrap; gap: var(--tk-sp-1); }
+.yardim-balon {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  gap: var(--tk-sp-1);
+  max-width: min(24rem, calc(100vw - 2 * var(--tk-sp-3)));
+  padding: var(--tk-sp-2) var(--tk-sp-3);
+  border: var(--tk-border-w) solid var(--tk-renk-1);
+  border-radius: var(--tk-r);
+  background: var(--tk-surface);
+  color: var(--tk-text);
+  font-size: var(--tk-fs-1);
+  line-height: var(--tk-lh-body);
+}
+.yardim-balon[hidden] { display: none; }
+.yardim-baslik { color: var(--tk-renk-1); font-weight: var(--tk-fw-semi); }
+.yardim-not { color: var(--tk-text-label); }
+.hakkinda {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--tk-sp-4);
+  border: var(--tk-border-w) solid var(--tk-border);
+  border-radius: var(--tk-r);
+  background:
+    radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--tk-renk-1) 10%, transparent), transparent 60%),
+    radial-gradient(ellipse at 100% 100%, color-mix(in srgb, var(--tk-renk-2) 10%, transparent), transparent 60%),
+    var(--tk-surface);
+}
+.hakkinda-baslik { margin: 0 0 var(--tk-sp-3); font-size: var(--tk-fs-3); line-height: var(--tk-lh-heading); color: var(--tk-text); }
+.hakkinda p { margin: 0 0 var(--tk-sp-3); font-size: var(--tk-fs-2); line-height: var(--tk-lh-body); color: var(--tk-text); }
+.hakkinda-imza { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tk-sp-2); padding-top: var(--tk-sp-3); border-top: var(--tk-border-w) solid var(--tk-border); color: var(--tk-text-label); }
+.hakkinda p.hakkinda-imza { margin: 0; color: var(--tk-text-label); font-size: var(--tk-fs-1); }
+@media print { .oniz-yazi, .yardim-balon, .gecmis-cizgi { display: none; } }
+.tk-toast { background: var(--tk-surface); border: var(--tk-border-w) solid var(--tk-border); border-radius: var(--tk-r); }
+table.istek .hc:hover { background: color-mix(in srgb, var(--tk-renk-2) 40%, transparent); }

@@ -1,8 +1,8 @@
 {
   "name": "ameliyathane-nobet",
-  "version": "1.2.2",
+  "version": "1.3.1",
   "private": true,
-  "productName": "Ameliyathane HemÃ…Å¸ireNÃƒÂ¶bet",
+  "productName": "Ameliyathane HemşireNöbet",
   "description": "Portable operating-room duty roster",
   "main": "boot.js"
 }

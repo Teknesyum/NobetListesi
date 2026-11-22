@@ -1,1 +1,0 @@
-- [ ] Sürüm 1.3.0 yayını (hemşirelerin uygulamasına otomatik iner) — 2026-11-22 16:35 — kullanıcı onayı bekliyor

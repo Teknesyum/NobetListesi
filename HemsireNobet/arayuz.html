@@ -54,8 +54,8 @@
       </div>
       <button type="button" class="dgm dgm-birincil" id="btnSonraki">Sonraki Ayı Hazırla</button>
     </div>
-    <label class="alan" for="kisi"><span>Günlük Kişi</span><input class="tk-input alan-sayi" type="number" id="kisi" min="1" max="12"></label>
-    <label class="alan" for="altSay"><span>Alternatif</span><input class="tk-input alan-sayi" type="number" id="altSay" min="2" max="500" value="200"></label>
+    <div class="alan" role="group" aria-labelledby="kisiAd"><span id="kisiAd">Günlük Kişi</span><span class="sayac"><button type="button" class="dgm dgm-kare" data-hedef="kisi" data-adim="-1" aria-label="Günlük kişiyi azalt">−</button><input class="tk-input alan-sayi" type="number" id="kisi" min="1" max="12" aria-labelledby="kisiAd"><button type="button" class="dgm dgm-kare" data-hedef="kisi" data-adim="1" aria-label="Günlük kişiyi artır">+</button></span></div>
+    <div class="alan" role="group" aria-labelledby="altAd"><span id="altAd">Alternatif</span><span class="sayac"><button type="button" class="dgm dgm-kare" data-hedef="altSay" data-adim="-10" aria-label="Alternatif sayısını azalt">−</button><input class="tk-input alan-sayi" type="number" id="altSay" min="30" max="500" step="10" value="300" aria-labelledby="altAd"><button type="button" class="dgm dgm-kare" data-hedef="altSay" data-adim="10" aria-label="Alternatif sayısını artır">+</button></span></div>
     <button type="button" class="dgm" id="btnZor" aria-pressed="false">İstekler Zorunlu: Kapalı</button>
     <button type="button" class="dgm" id="btnOnay" aria-pressed="false">Güncellemeden Önce Sor: Kapalı</button>
     <span class="bosluk"></span>
@@ -74,6 +74,7 @@
   <main class="govde">
     <section class="pnl liste-pnl">
       <h1 class="baski-baslik" id="baslik"></h1>
+      <p class="oniz-yazi" id="onizYazi" role="status"></p>
       <table class="liste" id="liste"></table>
     </section>
     <section class="pnl yan-pnl">
@@ -86,6 +87,7 @@
         <button type="button" role="tab" class="sekme" id="sk-kural" aria-selected="false" aria-controls="p-kural" tabindex="-1">Kurallar</button>
         <button type="button" role="tab" class="sekme" id="sk-kadro" aria-selected="false" aria-controls="p-kadro" tabindex="-1">Kadro</button>
         <button type="button" role="tab" class="sekme" id="sk-alt" aria-selected="false" aria-controls="p-alt" tabindex="-1">Alternatifler</button>
+        <button type="button" role="tab" class="sekme" id="sk-hakkinda" aria-selected="false" aria-controls="p-hakkinda" tabindex="-1">Hakkında</button>
       </div>
       <div class="yan-icerik" id="p-ozet" role="tabpanel" aria-labelledby="sk-ozet"></div>
       <div class="yan-icerik" id="p-sorun" role="tabpanel" aria-labelledby="sk-sorun" hidden></div>
@@ -95,6 +97,7 @@
       <div class="yan-icerik" id="p-kural" role="tabpanel" aria-labelledby="sk-kural" hidden></div>
       <div class="yan-icerik" id="p-kadro" role="tabpanel" aria-labelledby="sk-kadro" hidden></div>
       <div class="yan-icerik" id="p-alt" role="tabpanel" aria-labelledby="sk-alt" hidden></div>
+      <div class="yan-icerik" id="p-hakkinda" role="tabpanel" aria-labelledby="sk-hakkinda" hidden></div>
     </section>
   </main>
 </div>
@@ -110,6 +113,7 @@
     </div>
   </div>
 </div>
+<div class="yardim-balon" id="yardimBalon" role="tooltip" hidden><strong class="yardim-baslik" id="yardimBaslik"></strong><span id="yardimMetin"></span><small class="yardim-not">Kapatmak için Esc ya da herhangi bir yere tıkla.</small></div>
 <div class="tk-toast-stack" id="toast" role="status" aria-live="polite"></div>
 <script src="veri.js"></script>
 <script src="motor.js"></script>
