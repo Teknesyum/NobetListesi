@@ -80,13 +80,15 @@ function goc(k) {
   return k;
 }
 
-let GA = { aylar: {}, elle: {}, manuel: {} };
+let GA = { aylar: {}, elle: {}, manuel: {}, duzelt: {} };
+let DUZELT_MOD = false;
+const HG_GRUP = [0, 0, 0, 1, 2, 3, 4];
 let GD = { aylar: [], detay: {} };
 let GSEC = null;
 
 function gecmisAyarOku() {
   const g = oku("gecmis") || {};
-  GA = { aylar: g.aylar || {}, elle: g.elle || {}, manuel: g.manuel || {} };
+  GA = { aylar: g.aylar || {}, elle: g.elle || {}, manuel: g.manuel || {}, duzelt: g.duzelt || {} };
 }
 
 function gecmisAyarYaz() { W.veri.yaz("gecmis", JSON.stringify(GA)); }
@@ -145,7 +147,18 @@ function gecmisHesapla(y, a) {
     if (n === null && p === null) continue;
     ekle(ad, n !== null && hn !== null ? n - hn : 0, p !== null && hp !== null ? p - hp : 0, null);
   }
+  for (const [ad, dz] of Object.entries(GA.duzelt)) {
+    const hg = (dz || []).map(x => +x || 0);
+    const g = [0, 0, 0, 0, 0];
+    hg.forEach((x, i) => { g[HG_GRUP[i]] += x; });
+    ekle(ad, hgTop(hg), hgPuan(hg), g);
+  }
   return Object.values(r).some(x => Math.abs(x.n) > 1e-9 || Math.abs(x.p) > 1e-9) ? r : null;
+}
+
+function puanOrt() {
+  const h = MOTOR.hazirla(V, false);
+  return h.toplam ? h.toplamOde / h.toplam : 1;
 }
 
 function istekCarpanHesapla() {
@@ -178,7 +191,7 @@ function yukle(y, a) {
   else if (y === ILK.yil && a === ILK.ay) kisiler = taban.kisiler;
   else kisiler = kopya((kadro && kadro.kisiler) || taban.kisiler).map(k => Object.assign(k, { izin: [], istemiyor: [], istiyor: [] }));
   kisiler.forEach(goc);
-  const zor = kayit && kayit.zorunlu !== undefined ? kayit.zorunlu : kadro && kadro.zorunlu !== undefined ? kadro.zorunlu : false;
+  const zor = kayit && kayit.zs === 2 ? kayit.zorunlu : kadro && kadro.zs === 2 ? kadro.zorunlu : true;
   const kural = MOTOR.kuralNorm((kayit && kayit.kural) || (kadro && kadro.kural) || null, kisiler);
   V = {
     yil: y, ay: a, kisi: (kayit && kayit.kisi) || (kadro && kadro.kisi) || taban.kisi,
@@ -205,8 +218,8 @@ function yukle(y, a) {
 }
 
 function sakla() {
-  W.veri.yaz(ayAnahtar(V.yil, V.ay), JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler, zorunlu: V.zorunlu, kural: V.kural, ozel: V.ozel, tatil: V.tatil, liste: L, tohum: TOHUM, alt: ALT, altToplam: ALTTOPLAM, sec: SEC, eski: ESKI }));
-  W.veri.yaz("kadro", JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler.map(k => ({ ad: k.ad, nobet: k.nobet, odeme: k.odeme, izin: [], istemiyor: [], istiyor: [] })), zorunlu: V.zorunlu, kural: V.kural }));
+  W.veri.yaz(ayAnahtar(V.yil, V.ay), JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler, zorunlu: V.zorunlu, zs: 2, kural: V.kural, ozel: V.ozel, tatil: V.tatil, liste: L, tohum: TOHUM, alt: ALT, altToplam: ALTTOPLAM, sec: SEC, eski: ESKI }));
+  W.veri.yaz("kadro", JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler.map(k => ({ ad: k.ad, nobet: k.nobet, izin: [], istemiyor: [], istiyor: [] })), zorunlu: V.zorunlu, zs: 2, kural: V.kural }));
   W.veri.yaz("son", JSON.stringify({ yil: V.yil, ay: V.ay }));
 }
 
@@ -281,6 +294,7 @@ function gunSecici(deger, etiket, degis) {
 
 const baslik = (m, seviye) => el(seviye || "h2", { className: "bolum-baslik", textContent: m });
 const yardim = m => el("p", { className: "yardim", textContent: m });
+const paragraf = (kap, m) => { kap.replaceChildren(...String(m).split("\n\n").map(x => el("span", { className: "yardim-p", textContent: x }))); };
 const satir = (...x) => { const d = el("div", { className: "satir" }); d.append(...x); return d; };
 
 function aySiraKur() {
@@ -459,7 +473,104 @@ function ceteleCiz() {
   p.append(yardim("Her sütun o gün tutulan nöbet sayısı. NÖBET: nöbet / ödeme puanı (Cuma 2, Cumartesi 3, Pazar ve tatil 2). GEÇMİŞ: önceki aylarda hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan."));
   const b = el("button", { type: "button", className: "dgm", textContent: "Geçmiş Verileri İncele" });
   b.onclick = () => sekme("gecmis");
-  p.append(satir(b));
+  const g = el("button", { type: "button", className: "dgm", textContent: "Genel Çeteleye Git" });
+  g.onclick = () => sekme("cetele");
+  p.append(satir(g, b));
+  genelCeteleCiz();
+}
+
+function genelCeteleCiz() {
+  const p = $("#p-cetele");
+  if (!p) return;
+  p.replaceChildren();
+  p.append(baslik("Genel Çetele"));
+  const aylar = GD.aylar.slice().reverse();
+  const dahil = aylar.filter(m => m.dahil);
+  const kapsam = el("div", { className: "ay-cipler" });
+  kapsam.append(el("span", { className: "etiket", textContent: "Kapsanan aylar:" }));
+  aylar.forEach(m => {
+    const c = el("button", { type: "button", className: "cip", textContent: ayKisa(m.k) });
+    c.setAttribute("aria-pressed", String(m.dahil));
+    c.onclick = () => { GA.aylar[m.k] = !m.dahil; gecmisAyarYaz(); yenidenKur(); };
+    kapsam.append(c);
+  });
+  kapsam.append(el("span", { className: "cip bu-ay", textContent: AYLAR[V.ay - 1].slice(0, 3) + " " + V.yil + " (bu ay" + (L ? ")" : ", liste yok)") }));
+  p.append(kapsam);
+  const an = L ? MOTOR.analiz(V, L) : null;
+  const h0 = MOTOR.hazirla(V, false);
+  const rows = V.kisiler.map((k, i) => {
+    const r = { ad: k.ad, hg: [0, 0, 0, 0, 0, 0, 0], n: 0, p: 0, hn: 0, hp: 0 };
+    for (const m of dahil) {
+      const x = GD.detay[m.k] && GD.detay[m.k][k.ad];
+      if (!x) continue;
+      (x.hg || []).forEach((c, j) => { r.hg[j] += +c || 0; });
+      r.n += +x.n || 0; r.p += +x.p || 0; r.hn += +x.hn || 0; r.hp += +x.hp || 0;
+    }
+    if (an) {
+      an[i].hg.forEach((c, j) => { r.hg[j] += c; });
+      r.n += an[i].nobet; r.p += an[i].odeme;
+      r.hn += h0.nTaban[i]; r.hp += h0.pTaban[i];
+    }
+    r.dz = (GA.duzelt[k.ad] || [0, 0, 0, 0, 0, 0, 0]).map(x => +x || 0);
+    r.dz.forEach((c, j) => { r.hg[j] += c; });
+    r.n += hgTop(r.dz); r.p += hgPuan(r.dz);
+    return r;
+  });
+  const t = el("table", { className: "tablo cetele genel" });
+  const bas = el("tr");
+  bas.append(el("th", { scope: "col", textContent: "Ad" }));
+  CETELE_AD.forEach((m, i) => bas.append(el("th", { scope: "col", className: i >= 4 ? "hs" : "", textContent: m })));
+  ["NÖBET", "PUAN", "FARK"].forEach(m => bas.append(el("th", { scope: "col", textContent: m })));
+  t.append(bas);
+  rows.forEach(r => {
+    const tr = el("tr");
+    tr.append(el("td", { className: "ad", textContent: r.ad }));
+    r.hg.forEach((x, j) => {
+      const td = el("td", { className: j >= 4 ? "hs" : "" });
+      if (DUZELT_MOD) {
+        const inp = el("input", { className: "tk-input ince dar", type: "number", step: "1", value: String(r.dz[j]) });
+        inp.setAttribute("aria-label", r.ad + " " + CETELE_AD[j] + " elle düzeltme");
+        inp.onchange = () => {
+          const dz = (GA.duzelt[r.ad] || [0, 0, 0, 0, 0, 0, 0]).map(v => +v || 0);
+          dz[j] = Math.round(+inp.value || 0);
+          if (dz.some(v => v)) GA.duzelt[r.ad] = dz; else delete GA.duzelt[r.ad];
+          gecmisAyarYaz();
+          yenidenKur();
+        };
+        td.append(inp);
+      } else {
+        td.textContent = String(x);
+        if (!x) td.classList.add("sifir");
+        if (r.dz[j]) { td.classList.add("elle"); td.title = "Elle düzeltme " + isr(r.dz[j]); }
+      }
+      tr.append(td);
+    });
+    tr.append(el("td", { className: "np", textContent: r.n + " / " + f1(r.hn) }));
+    tr.append(el("td", { className: "np", textContent: f1(r.p) + " / " + f1(r.hp) }));
+    const fn = r.n - r.hn, fp = r.p - r.hp;
+    const fk = el("td", { className: "np fark", textContent: isr(fn) + " / " + isr(fp) });
+    fk.dataset.kotu = Math.abs(fn) >= 1 || Math.abs(fp) >= 2.5 ? "1" : "0";
+    tr.append(fk);
+    t.append(tr);
+  });
+  const kap = el("div", { className: "istek-kap" });
+  kap.append(t);
+  p.append(kap);
+  const dz = el("button", { type: "button", className: "dgm", id: "btnDuzelt", textContent: DUZELT_MOD ? "Düzeltmeyi Bitir" : "Elle Düzelt" });
+  dz.setAttribute("aria-pressed", String(DUZELT_MOD));
+  dz.onclick = () => { DUZELT_MOD = !DUZELT_MOD; genelCeteleCiz(); };
+  const sf = el("button", { type: "button", className: "dgm dgm-sil", id: "btnDuzeltSifir", textContent: "Düzeltmeleri Sıfırla" });
+  let onay = null;
+  sf.onclick = () => {
+    if (!Object.keys(GA.duzelt).length) { toast("Elle düzeltme yok.", "info"); return; }
+    if (!onay) { sf.textContent = "Emin misin? Bir daha bas"; onay = setTimeout(() => { onay = null; sf.textContent = "Düzeltmeleri Sıfırla"; }, 3000); return; }
+    clearTimeout(onay);
+    GA.duzelt = {};
+    gecmisAyarYaz();
+    yenidenKur("Elle düzeltmeler silindi.");
+  };
+  p.append(satir(dz, sf));
+  p.append(yardim("Genel çetele, kapsanan ayların ve bu ayın toplamıdır. NÖBET ve PUAN: tutulan / hakkı olan. FARK: hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan.\n\nListeyi Oluştur bu farkı kapatmaya çalışır: fazlası olanın bu ayki hedefi düşer, eksiği olanınki artar. Amaç birkaç ay sonunda herkesin farkının sıfıra yakın olmasıdır.\n\nElle Düzelt: kâğıttaki çeteleyle uyuşmayan bir sayı varsa gün sütununa + ya da − yaz. Düzeltme bütün aylara genel olarak eklenir ve liste hazırlanırken hesaba katılır."));
 }
 
 function durumCiz() {
@@ -531,12 +642,13 @@ function kadroCiz() {
   p.append(baslik("Kadro"));
   const t = el("table", { className: "tablo" });
   const b = el("tr");
-  ["Ad", "Nöbet", "Ödeme"].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
+  ["Ad", "Nöbet", "Ödeme Puanı Hedefi"].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
+  const h0 = MOTOR.hazirla(V, false);
   t.append(b);
   V.kisiler.forEach(k => {
     const tr = el("tr");
     tr.append(el("td", { className: "ad", textContent: k.ad }));
-    [["nobet", "nöbet sayısı"], ["odeme", "ödeme puanı"]].forEach(([a, e]) => {
+    [["nobet", "nöbet sayısı"]].forEach(([a, e]) => {
       const i = el("input", { className: "tk-input ince dar", type: "number", min: "0", value: k[a] });
       i.setAttribute("aria-label", k.ad + " " + e);
       i.onchange = () => { k[a] = Math.max(0, +i.value || 0); i.value = k[a]; degisti(); kadroUyari(); };
@@ -544,12 +656,13 @@ function kadroCiz() {
       td.append(i);
       tr.append(td);
     });
+    tr.append(el("td", { className: "gec", textContent: f1(h0.pTaban[V.kisiler.indexOf(k)]) }));
     t.append(tr);
   });
   p.append(t);
   p.append(el("p", { className: "yardim uyari", id: "kadroUyari" }));
   kadroUyari();
-  p.append(yardim("Nöbet: kişinin bu ayki nöbet payı (6/10 yazan kâğıtta 6). Ödeme: ödeme puanı payı (10). Cuma 2, Cumartesi 3, Pazar ve tatil 2, diğer günler 1 puan."));
+  p.append(yardim("Nöbet: kişinin bu ayki nöbet payı. Ödeme puanı hedefi nöbet sayısıyla aynı oranda hesaplanır: 3 nöbet tutan 3 nöbetlik, 6 tutan 6 nöbetlik puan alır. Böylece az nöbet tutan biri hep Cumartesi tutup çok nöbet tutanla aynı parayı alamaz. Cuma 2, Cumartesi 3, Pazar ve tatil 2, diğer günler 1 puan."));
 }
 
 function kadroUyari() {
@@ -827,7 +940,7 @@ function kuralCiz() {
   p.append(baslik("Bu Günden Sonra Boş Kalsın", "h3"));
   const t = el("table", { className: "tablo" });
   const b = el("tr");
-  ["Durum", "Nöbet Günü", "Boş Kalacak Günler", "Hangi Haftalar", "Kesin", ""].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
+  ["Durum", "Nöbet Günü", "Boş Kalacak Günler", "Hangi Nöbetler", "Kesin", ""].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
   t.append(b);
   const td = (...x) => { const c = el("td"); c.append(...x); return c; };
   K.sonraBos.forEach((r, i) => {
@@ -839,7 +952,7 @@ function kuralCiz() {
     }
     const ks = el("select", { className: "tk-input ince" });
     ks.setAttribute("aria-label", (i + 1) + ". kural kapsamı");
-    [["hepsi", "Her " + MOTOR.GUN[r.gun]], ["ilk", "Yalnız ayın ilk " + MOTOR.GUN[r.gun] + " günü"], ["son", "Yalnız ayın son " + MOTOR.GUN[r.gun] + " günü"]].forEach(([v, m]) => ks.append(el("option", { value: v, textContent: m, selected: r.kapsam === v })));
+    [["bir", MOTOR.GUN[r.gun] + " nöbetlerinden biri"], ["hepsi", "Her " + MOTOR.GUN[r.gun] + " nöbeti"]].forEach(([v, m]) => ks.append(el("option", { value: v, textContent: m, selected: r.kapsam === v })));
     ks.onchange = () => { r.kapsam = ks.value; degis(); };
     const sil = el("button", { type: "button", className: "dgm dgm-sil", textContent: "Sil" });
     sil.onclick = () => { K.sonraBos.splice(i, 1); degis(); };
@@ -854,11 +967,11 @@ function kuralCiz() {
   });
   p.append(t);
   const ekle = el("button", { type: "button", className: "dgm", textContent: "Kural Ekle" });
-  ekle.onclick = () => { K.sonraBos.push({ gun: 4, bos: [5, 6, 0], kapsam: "hepsi", kesin: false, acik: true }); degis(); };
+  ekle.onclick = () => { K.sonraBos.push({ gun: 4, bos: [5, 6, 0], kapsam: "bir", kesin: false, acik: true }); degis(); };
   const varsay = el("button", { type: "button", className: "dgm", textContent: "Varsayılana Dön" });
   varsay.onclick = () => { Object.assign(K, { ardArda: MOTOR.KURAL.ardArda, odemeModu: MOTOR.KURAL.odemeModu, sonraBos: kopya(MOTOR.KURAL.sonraBos) }); degis(); };
   p.append(satir(ekle, varsay));
-  p.append(yardim("Örnek: Perşembe → Cum, Cmt, Paz işaretliyse perşembe nöbetçisinin o hafta sonu boş kalır. Kesin işaretli değilse kural güçlü bir tercihtir, gerekirse çiğnenir ve Sorunlar'da yazar. Gruplar ve aynı gün kuralları İleri Seviye'de."));
+  p.append(yardim("Örnek: Perşembe → Cmt, Paz işaretli ve \u201cPerşembe nöbetlerinden biri\u201d seçiliyse, herkesin tuttuğu perşembelerden en az birinin ardından hafta sonu boş kalır. \u201cHer Perşembe nöbeti\u201d seçilirse her perşembe nöbetinden sonra hafta sonu boş kalır. Kesin işaretli değilse kural güçlü bir tercihtir, gerekirse çiğnenir ve Sorunlar'da yazar. Gruplar ve aynı gün kuralları İleri Seviye'de."));
 }
 
 function ileriCiz() {
@@ -1014,7 +1127,7 @@ function gecmisCiz() {
     const ak = sec.value;
     if (!ak) return;
     const kisiler = {};
-    V.kisiler.forEach(k => { kisiler[k.ad] = { hg: [0, 0, 0, 0, 0, 0, 0], hn: k.nobet, hp: k.odeme }; });
+    V.kisiler.forEach(k => { kisiler[k.ad] = { hg: [0, 0, 0, 0, 0, 0, 0], hn: k.nobet, hp: +f1(k.nobet * puanOrt()) }; });
     GA.manuel[ak] = { kisiler };
     GA.aylar[ak] = true;
     GSEC = ak;
@@ -1090,7 +1203,7 @@ function gecmisElle(sag, ak) {
   const guncel = () => { gecmisAyarYaz(); V.gecmis = gecmisHesapla(V.yil, V.ay); if (L) ESKI = true; sakla(); ceteleCiz(); analizCiz(); durumCiz(); ayPanelCiz(); };
   adlar.forEach(ad => {
     const kk = V.kisiler.find(k => k.ad === ad);
-    const x = man.kisiler[ad] || (man.kisiler[ad] = { hg: [0, 0, 0, 0, 0, 0, 0], hn: kk ? kk.nobet : 0, hp: kk ? kk.odeme : 0 });
+    const x = man.kisiler[ad] || (man.kisiler[ad] = { hg: [0, 0, 0, 0, 0, 0, 0], hn: kk ? kk.nobet : 0, hp: kk ? +f1(kk.nobet * puanOrt()) : 0 });
     const tr = el("tr");
     tr.append(el("td", { className: "ad", textContent: ad }));
     const np = el("td", { className: "np" });
@@ -1229,21 +1342,22 @@ function hakkindaCiz() {
   p.append(k);
 }
 
-const ANA = { hazir: ["istek", "ozel", "liste", "alt", "analiz", "sorun"], ayar: ["kadro", "kural", "ileri", "gecmis", "genel", "hakkinda"] };
-const SON_ALT = { hazir: "istek", ayar: "kadro" };
-const anaBul = ad => (ANA.hazir.includes(ad) ? "hazir" : "ayar");
+const ANA = { cetele: ["cetele"], hazir: ["istek", "ozel", "liste", "alt", "analiz", "sorun"], ayar: ["kadro", "kural", "ileri", "gecmis", "genel", "hakkinda"] };
+const SON_ALT = { cetele: "cetele", hazir: "istek", ayar: "kadro" };
+const ANA_AD = Object.keys(ANA);
+const anaBul = ad => ANA_AD.find(a => ANA[a].includes(ad)) || "ayar";
 
 function sekme(ad) {
   const ana = anaBul(ad);
   AKTIF = ad;
   SON_ALT[ana] = ad;
   if (ad === "ozel") OZEL_GORULDU = true;
-  ["hazir", "ayar"].forEach(a => {
+  ANA_AD.forEach(a => {
     const b = $("#ana-" + a);
     b.setAttribute("aria-selected", String(a === ana));
     b.tabIndex = a === ana ? 0 : -1;
   });
-  ANA.hazir.concat(ANA.ayar).forEach(s => {
+  ANA_AD.flatMap(a => ANA[a]).forEach(s => {
     const a = s === ad;
     const b = $("#sk-" + s);
     b.hidden = anaBul(s) !== ana;
@@ -1256,7 +1370,7 @@ function sekme(ad) {
 }
 
 function sekmeKur() {
-  ["hazir", "ayar"].forEach((a, i, dizi) => {
+  ANA_AD.forEach((a, i, dizi) => {
     const b = $("#ana-" + a);
     b.onclick = () => sekme(SON_ALT[a]);
     b.onkeydown = e => {
@@ -1315,6 +1429,12 @@ const YARDIM = [
   ["#sk-gecmis, #p-gecmis", "Geçmiş", "Önceki ayların çetelesi; hangi ayların hesaba katılacağı."],
   ["#sk-genel, #p-genel", "Genel", "Güncelleme, Yeşil Yol, rehber, resmi tatil, alternatif sayısı."],
   ["#sk-hakkinda, #p-hakkinda", "Hakkında", "Programın tanıtımı ve kullanımı."],
+  ["#btnDuzelt", "Elle Düzelt", "Açınca gün sütunları kutuya döner; kâğıttaki çeteleyle uyuşmayan sayıya + ya da − yaz. Örnek: biri geçen ay kayda geçmemiş bir Cumartesi tuttuysa CTESİ sütununa 1 yaz."],
+  ["#btnDuzeltSifir", "Düzeltmeleri Sıfırla", "Bütün elle düzeltmeleri siler. İki kez basılır."],
+  ["table.genel", "Genel Çetele", "Kapsanan ayların ve bu ayın toplamı. FARK: hakkından fazla (+) ya da eksik (−) tutulan nöbet / puan; uyarı renkli fark büyük demek."],
+  [".ay-cipler .cip", "Kapsanan Ay", "Tıkla: bu ayı genel çeteleye kat ya da çıkar. Katılan aylardaki fark yeni listede dengelenir."],
+  ["#sk-cetele, #p-cetele", "Genel Çetele", "Birkaç ayın toplam nöbet ve puanı. Amaç bu tablodaki farkları sıfıra yaklaştırmak."],
+  ["#ana-cetele", "Çetele", "Aylar boyu genel çetele ve elle düzeltme."],
   ["#ana-hazir", "Liste Hazırlama", "İstekler, özel talepler, liste ve alternatifler."],
   ["#ana-ayar", "Ayarlar", "Kadro, kurallar, geçmiş ve genel ayarlar."],
   ["#basbarSurum", "Sürüm", "Güncellemeleri denetler."],
@@ -1325,6 +1445,7 @@ const YARDIM = [
 ];
 
 const ADIM = {
+  cetele: "Bu bölümde kapsanan ayların toplam çetelesi görülür. FARK sütunu sıfırdan uzaksa Liste Hazırlama › İstekler'e geçip bu ayın listesini oluştur; program farkı kapatmaya çalışır.\n\nKâğıttaki çeteleyle uyuşmayan bir sayı varsa Elle Düzelt'e bas.",
   istek: "Bu bölümde istekler ve izinler girilir. Nöbet istenen günlere sol tıkla ✓, izinli ya da nöbet istenmeyen günlere sağ tıkla ✗ koy. Bitirince Sonraki: Özel Talepler düğmesine bas.",
   ozel: "Bu bölümde “şu kişilere en az 1 Perşembe” gibi talepler girilir. Gerekmiyorsa boş bırak. Bitirince Listeyi Oluştur'a bas.",
   liste: "Bu bölümde liste ve çetele görülür. Listeyi kontrol et, gerekirse kutudan elle değiştir. Bitirince Yazdır'a ya da Excel'e Kopyala'ya bas.",
@@ -1357,8 +1478,9 @@ function simdiMetni() {
     if (!bul) bul = YARDIM.find(([s]) => s.split(", ")[0] === "#sk-" + AKTIF);
     const [, bas, metin] = bul;
     $("#yardimBaslik").textContent = bas;
-    $("#yardimMetin").textContent = metin;
-    $("#yardimSimdi").textContent = "Şimdi: " + simdiMetni();
+    paragraf($("#yardimMetin"), metin);
+    paragraf($("#yardimSimdi"), simdiMetni());
+    $("#yardimSimdi").prepend(el("span", { className: "yardim-etiket", textContent: "Sonraki Adım" }));
     balon.hidden = false;
     const r = balon.getBoundingClientRect();
     const x = Math.min(innerWidth - r.width - 8, Math.max(8, mx + 16));
