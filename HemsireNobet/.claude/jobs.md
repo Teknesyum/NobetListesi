@@ -1,2 +1,6 @@
-- [x] NobetListesi repo, HemsireNobet bölümü, otomatik güncelleme (boot/guncelle, release hemsirenobet-v1.1.0)
-- [x] Zorunlu istek açıkken sorunun nedeni: art arda nöbet kesin yasak, çakışan istekler imkansız diye raporlanır
+- [x] Electron 45.4.1 indir, electron/ içine koy (sha256 doğrulandı)
+- [x] Hemşire bilgileri: repoda yalnız takma adlar (Hemşire 01-20) + Kasım istekleri; gerçek adlar USB'deki veri/ klasöründe, bu makinede bulunamadı
+- [x] Tüm günler eşit mi daha adil: ölçüldü, Kurallar sekmesinde "Gün Ağırlığı" seçeneği
+- [x] Geçmiş hatası: ay gezerken kendiliğinden üretilen listeler geçmişe giriyordu ve şimdiki ayın hedefiyle kıyaslanıyordu; Geçmiş sekmesi (6/10 hücreler, ay dahil/hariç, elle giriş)
+- [x] Kural seçenekleri: art arda aç/kapa, "X nöbetinden sonra Y günleri boş", her/ilk/son hafta, kesin
+- [ ] Sürüm 1.3.0 yayını (hemşirelerin uygulamasına otomatik iner) — kullanıcı onayı bekliyor

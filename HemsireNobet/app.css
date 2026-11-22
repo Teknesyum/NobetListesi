@@ -346,3 +346,21 @@ table.istek td.top { color: var(--tk-text-label); font-size: var(--tk-fs-1); lin
 .lejant { display: flex; flex-wrap: wrap; gap: var(--tk-sp-3); margin: 0 0 var(--tk-sp-2); font-size: var(--tk-fs-1); color: var(--tk-text-label); }
 .lejant span { display: inline-flex; align-items: center; gap: var(--tk-sp-1); }
 .lejant .hc { display: inline-block; width: var(--tk-target-min); min-height: var(--tk-target-min); text-align: center; line-height: var(--tk-target-min); cursor: default; }
+
+.gecmis-ust, .kural-ust { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tk-sp-2); margin-bottom: var(--tk-sp-2); min-width: 0; }
+.gecmis-ust .etiket { font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-text-label); font-weight: var(--tk-fw-semi); }
+.gecmis-ust .yardim { margin: 0; }
+.kural-ust + .kural-ust { margin-top: var(--tk-sp-2); }
+.dgm-ac[aria-pressed="true"] { border-color: var(--tk-renk-1); color: var(--tk-renk-1); }
+table.gecmis td small { display: block; color: var(--tk-text-label); font-weight: var(--tk-fw-body); }
+table.gecmis td.elle { white-space: nowrap; }
+table.gecmis .tk-input, table.kural .tk-input { min-height: var(--tk-target-min); height: var(--tk-target-min); padding: 0 var(--tk-sp-1); font-size: var(--tk-fs-1); }
+table.gecmis .tk-input.dar { width: calc(var(--tk-target-min) * 2.5); text-align: center; }
+table.gecmis .bolu { padding: 0 var(--tk-sp-1); color: var(--tk-text-label); }
+table.kural td.kural-gun { white-space: nowrap; }
+.kutu { display: inline-flex; align-items: center; gap: var(--tk-sp-1); margin-right: var(--tk-sp-2); font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-text); cursor: pointer; }
+.kutu input { accent-color: var(--tk-renk-1); width: var(--tk-icon-2); height: var(--tk-icon-2); margin: 0; }
+.kadro-uyari[data-kotu="1"] { color: var(--tk-warning); font-weight: var(--tk-fw-semi); }
+.kadro-uyari[data-kotu="0"] { color: var(--tk-success); }
+.kural-ust .alan span { white-space: nowrap; }
+.kural-ust .tk-input { min-height: var(--tk-target-min); height: var(--tk-target-min); padding: 0 var(--tk-sp-1); font-size: var(--tk-fs-1); }

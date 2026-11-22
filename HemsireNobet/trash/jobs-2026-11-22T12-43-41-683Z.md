@@ -1,0 +1,2 @@
+- [x] NobetListesi repo, HemsireNobet bölümü, otomatik güncelleme (boot/guncelle, release hemsirenobet-v1.1.0)
+- [x] Zorunlu istek açıkken sorunun nedeni: art arda nöbet kesin yasak, çakışan istekler imkansız diye raporlanır

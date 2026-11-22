@@ -1,11 +1,11 @@
-# Plan
+# Plan 3 — Geçmiş Düzenleme, Kural Seçenekleri, Gün Ağırlığı
 
-Portable Electron roster tool: one list, 20 nurses, all in the operating room.
+Ölçüm (Kasım 2026, varsayılan kadro): Σ nöbet 120 = 30 gün × 4 kişi, Σ ödeme 188 = günde 4 kişiyle toplam puan. Günlük kişi 5 seçilince herkesin hedefi %25 şişiyor (6 → 7,5); 4 ile her kişi tam 6/10 alıyor.
 
-1. Copy the Teknesyum shell (titlebar, tokens, forms, states) from Asistan/HemşireNöbet.
-2. `boot.js` / `cekirdek.js` / `preload.js`: frameless window, data in `veri/` next to the app, no sync, no network.
-3. `arayuz.html` + `uygulama.js` + `app.css`: one list view, staff panel, summary, print/copy/CSV.
-4. `motor.js` + `veri.js`: unchanged engine and default data.
-5. `electron/` (copy of the Electron binaries) + `HemsireNobet.bat`: the folder runs from a USB stick with no install.
-6. `node scan.js`, run the app, screenshot, report deviations to Core.
-7. Update: boot.js picks the newest healthy code package, guncelle.js installs it from GitHub releases; version button in the title bar.
+1. `motor.js`: kurallar `v.kural` içinde. `ardArda` (aç/kapa), `sonraBos` listesi: {gun, bos[], kapsam: hepsi|ilk|son, acik}. Varsayılan: Perşembe → Cmt, Paz, tüm perşembeler. `odemeModu`: `puan` (Cum 2, Cmt 3, Paz 2) veya `esit` (her gün 1, yalnız gün grupları dengelenir).
+2. `motor.js`: `v.gecmis` artık doğrudan fark (yapılan − o ayın kendi hedefi); motor şimdiki ayın hedefiyle karşılaştırmaz.
+3. `uygulama.js`: geçmiş yalnız "hesaba kat" işaretli aylardan ve elle girilen farktan gelir. Ay gezerken kendiliğinden üretilen listeler artık geçmişe girmez (hatanın kaynağı).
+4. Geçmiş sekmesi: kişi × ay tablosu, her hücre "6/10" (nöbet/puan) ve altında hedef; elle fark girişi; toplam fark.
+5. Kurallar sekmesi: aç/kapa düğmeleri, kural ekle/sil, gün seçimi, kapsam seçimi.
+6. Kadro sekmesi: Σ nöbet ile gün × kişi uyuşmazsa uyarı.
+7. Uygulamayı çalıştır, ekran görüntüsü.

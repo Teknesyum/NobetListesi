@@ -58,29 +58,52 @@ function goc(k) {
   return k;
 }
 
+let GA = { aylar: {}, elle: {} };
+let GD = { aylar: [], detay: {} };
+
+function gecmisAyarOku() {
+  const g = oku("gecmis") || {};
+  GA = { aylar: g.aylar || {}, elle: g.elle || {} };
+}
+
+function gecmisAyarYaz() { W.veri.yaz("gecmis", JSON.stringify(GA)); }
+
+const ayKisa = k => { const [y, a] = k.split("-"); return AYLAR[+a - 1].slice(0, 3) + " " + y; };
+
 function gecmisHesapla(y, a) {
   const r = {};
+  const ekle = (ad, n, p, g) => {
+    const x = r[ad] || (r[ad] = { n: 0, p: 0, g: [0, 0, 0, 0, 0] });
+    x.n += n; x.p += p;
+    if (g) for (let q = 0; q < 5; q++) x.g[q] += g[q];
+  };
+  GD = { aylar: [], detay: {} };
   let py = y, pa = a;
-  for (let i = 0; i < 36; i++) {
+  for (let i = 0; i < 24; i++) {
     pa--;
     if (pa < 1) { pa = 12; py--; }
     const pk = oku(ayAnahtar(py, pa));
     if (!pk || !pk.liste || !pk.kisiler) continue;
-    const ay = { yil: py, ay: pa, tatil: pk.tatil || [] };
-    const G = MOTOR.gunSayisi(ay);
-    for (let d = 1; d <= G; d++) {
-      for (const i2 of pk.liste[d] || []) {
-        const kk = pk.kisiler[i2];
-        if (!kk) continue;
-        const x = r[kk.ad] || (r[kk.ad] = { n: 0, p: 0, g: [0, 0, 0, 0, 0] });
-        const q = MOTOR.grup(ay, d);
-        x.n++;
-        x.p += MOTOR.AGIRLIK[q];
-        x.g[q]++;
-      }
-    }
+    const ak = py + "-" + String(pa).padStart(2, "0");
+    const dahil = GA.aylar[ak] === true;
+    GD.aylar.push({ k: ak, dahil });
+    const mv = { yil: py, ay: pa, kisi: pk.kisi || 4, tatil: pk.tatil || [], kisiler: kopya(pk.kisiler).map(goc), kural: pk.kural };
+    const h = MOTOR.hazirla(mv, false);
+    const an = MOTOR.analiz(mv, pk.liste);
+    const dt = GD.detay[ak] = {};
+    an.forEach((x, i2) => {
+      const gb = h.beklenen[i2];
+      dt[x.ad] = { n: x.nobet, p: x.odeme, hn: h.nTaban[i2], hp: h.pTaban[i2] };
+      if (dahil) ekle(x.ad, x.nobet - h.nTaban[i2], x.odeme - h.pTaban[i2], x.grup.map((c, q) => c - gb[q]));
+    });
   }
-  return Object.keys(r).length ? r : null;
+  for (const [ad, e] of Object.entries(GA.elle)) {
+    const sayi = x => (x === "" || x === undefined || x === null || isNaN(+x) ? null : +x);
+    const n = sayi(e.n), hn = sayi(e.hn), p = sayi(e.p), hp = sayi(e.hp);
+    if (n === null && p === null) continue;
+    ekle(ad, n !== null && hn !== null ? n - hn : 0, p !== null && hp !== null ? p - hp : 0, null);
+  }
+  return Object.values(r).some(x => Math.abs(x.n) > 1e-9 || Math.abs(x.p) > 1e-9) ? r : null;
 }
 
 function yukle(y, a) {
@@ -93,12 +116,14 @@ function yukle(y, a) {
   else kisiler = kopya((kadro && kadro.kisiler) || taban.kisiler).map(k => Object.assign(k, { izin: [], istemiyor: [], istiyor: [] }));
   kisiler.forEach(goc);
   const zor = kayit && kayit.zorunlu !== undefined ? kayit.zorunlu : kadro && kadro.zorunlu !== undefined ? kadro.zorunlu : false;
-  V = { yil: y, ay: a, kisi: (kayit && kayit.kisi) || (kadro && kadro.kisi) || taban.kisi, tatil: [], kisiler, zorunlu: !!zor, onceki: [], gecmis: null };
+  const kural = MOTOR.kuralNorm((kayit && kayit.kural) || (kadro && kadro.kural) || null);
+  V = { yil: y, ay: a, kisi: (kayit && kayit.kisi) || (kadro && kadro.kisi) || taban.kisi, tatil: [], kisiler, zorunlu: !!zor, kural, onceki: [], gecmis: null };
+  gecmisAyarOku();
   V.gecmis = gecmisHesapla(y, a);
   const py = a === 1 ? y - 1 : y;
   const pa = a === 1 ? 12 : a - 1;
   const pk = oku(ayAnahtar(py, pa));
-  if (pk && pk.liste && pk.kisiler) {
+  if (pk && pk.liste && pk.kisiler && GA.aylar[py + "-" + String(pa).padStart(2, "0")] === true) {
     const son = pk.liste[new Date(py, pa, 0).getDate()] || [];
     V.onceki = son.map(i => pk.kisiler[i] && pk.kisiler[i].ad).map(ad => kisiler.findIndex(k => k.ad === ad)).filter(i => i >= 0);
   }
@@ -110,8 +135,8 @@ function yukle(y, a) {
 }
 
 function sakla() {
-  W.veri.yaz(ayAnahtar(V.yil, V.ay), JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler, zorunlu: V.zorunlu, liste: L, tohum: TOHUM, alt: ALT, altToplam: ALTTOPLAM, sec: SEC }));
-  W.veri.yaz("kadro", JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler, zorunlu: V.zorunlu }));
+  W.veri.yaz(ayAnahtar(V.yil, V.ay), JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler, zorunlu: V.zorunlu, kural: V.kural, liste: L, tohum: TOHUM, alt: ALT, altToplam: ALTTOPLAM, sec: SEC }));
+  W.veri.yaz("kadro", JSON.stringify({ kisi: V.kisi, kisiler: V.kisiler, zorunlu: V.zorunlu, kural: V.kural }));
   W.veri.yaz("son", JSON.stringify({ yil: V.yil, ay: V.ay }));
 }
 
@@ -224,13 +249,18 @@ function kadroCiz() {
     [["nobet", "Nöbet Sayısı"], ["odeme", "Ödeme Puanı"]].forEach(([a, e]) => {
       const i = el("input", { className: "tk-input dar", type: "number", min: "0", value: k[a] });
       i.setAttribute("aria-label", k.ad + " " + e);
-      i.onchange = () => { k[a] = Math.max(0, +i.value || 0); sakla(); ciz(); };
+      i.onchange = () => { k[a] = Math.max(0, +i.value || 0); sakla(); kadroCiz(); ciz(); };
       tr.append(el("td", {}));
       tr.lastChild.append(i);
     });
     t.append(tr);
   });
   p.append(t);
+  const G = MOTOR.gunSayisi(V);
+  const sn = V.kisiler.reduce((a, k) => a + k.nobet, 0);
+  const uy = el("p", { className: "yardim kadro-uyari", textContent: "Toplam nöbet " + sn + ", bu ay gereken " + G * V.kisi + " (" + G + " gün × günde " + V.kisi + " kişi)." + (sn === G * V.kisi ? " Uyuşuyor." : " Uyuşmuyor: herkesin hedefi aynı oranda " + (sn < G * V.kisi ? "artırılır" : "azaltılır") + " (6 yazan " + f1(6 * G * V.kisi / Math.max(1, sn)) + " alır). Günlük kişi sayısını ya da nöbet sayılarını düzelt.") });
+  uy.dataset.kotu = sn === G * V.kisi ? "0" : "1";
+  p.append(uy);
   p.append(el("p", { className: "yardim", textContent: "Nöbet, kişinin bu ayki nöbet sayısı payıdır (6/10 yazan kâğıtta 6). Ödeme, ödeme puanı payıdır (10). Cuma 2, Cumartesi 3, Pazar ve tatil 2, diğer günler 1 puan. İzin, istemiyor ve istiyor günleri İstekler sekmesinden tıklayarak seçilir." }));
 }
 
@@ -331,8 +361,6 @@ function analizCiz() {
   const b = el("tr");
   ["Ad", "Nöbet", "Ödeme", "Per", "Cum", "Cmt", "Paz", "İstek", "İstemez", "Geçmiş"].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
   t.append(b);
-  const f1 = x => (Math.round(x * 10) / 10).toString();
-  const isr = x => (x > 0 ? "+" : "") + f1(x);
   an.forEach(a => {
     const tr = el("tr");
     tr.append(el("td", { textContent: a.ad }));
@@ -355,6 +383,153 @@ function analizCiz() {
   });
   p.append(t);
   p.append(el("p", { className: "yardim", textContent: "Nöbet ve Ödeme: yazılan sayı ve geçmiş aylar düşüldükten sonraki hedef. Per, Cum, Cmt, Paz: o günlerdeki nöbet sayısı ve beklenen. İstek: verilen istek / toplam. İstemez: istemediği güne yazılan / toplam; ard arda ve perşembe sonrası hafta sonu sayıları altta. Geçmiş: önceki ayların toplamında hak edilene göre fazla (+) veya eksik (-); yeni ay bunu dengelemek için kurulur." }));
+}
+
+const f1 = x => (Math.round(x * 10) / 10).toString();
+const isr = x => (x > 0.05 ? "+" : "") + f1(x);
+
+function yenidenKur(m) {
+  V.gecmis = gecmisHesapla(V.yil, V.ay);
+  analizCiz();
+  gecmisCiz();
+  toast(m || "Değişiklik kaydedildi. Listeye yansıması için Listeyi Oluştur düğmesine bas.");
+}
+
+function gecmisCiz() {
+  const p = $("#p-gecmis");
+  p.replaceChildren();
+  const ust = el("div", { className: "gecmis-ust" });
+  ust.append(el("span", { className: "etiket", textContent: "Hesaba Katılan Aylar:" }));
+  if (!GD.aylar.length) ust.append(el("span", { className: "yardim", textContent: "Önceki aylarda kayıtlı liste yok. Geçmişi aşağıdan elle gir." }));
+  GD.aylar.slice().reverse().forEach(m => {
+    const b = el("button", { type: "button", className: "dgm dgm-ac", textContent: ayKisa(m.k) + ": " + (m.dahil ? "Katılıyor" : "Katılmıyor") });
+    b.setAttribute("aria-pressed", String(m.dahil));
+    b.onclick = () => { GA.aylar[m.k] = !m.dahil; gecmisAyarYaz(); yenidenKur(); };
+    ust.append(b);
+  });
+  const sifir = el("button", { type: "button", className: "dgm", textContent: "Elle Girilenleri Temizle" });
+  sifir.onclick = () => { GA.elle = {}; gecmisAyarYaz(); yenidenKur("Elle girilen geçmiş temizlendi."); };
+  ust.append(sifir);
+  p.append(ust);
+  const aylar = GD.aylar.filter(m => m.dahil).map(m => m.k).reverse();
+  const t = el("table", { className: "analiz gecmis" });
+  const b = el("tr");
+  b.append(el("th", { scope: "col", textContent: "Ad" }));
+  aylar.forEach(k => b.append(el("th", { scope: "col", textContent: ayKisa(k) })));
+  ["Elle: Tuttuğu", "Elle: Hakkı", "Toplam Fark"].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
+  t.append(b);
+  const esit = V.kural.odemeModu === "esit";
+  V.kisiler.forEach(k => {
+    const tr = el("tr");
+    tr.append(el("td", { textContent: k.ad }));
+    aylar.forEach(ak => {
+      const x = GD.detay[ak][k.ad];
+      const td = el("td", {});
+      if (!x) { td.append("-", el("small", { textContent: "kadroda yok" })); }
+      else {
+        const fn = x.n - x.hn;
+        td.dataset.kotu = Math.abs(fn) >= 1 ? "1" : "0";
+        td.append(x.n + "/" + x.p, el("small", { textContent: "hak " + f1(x.hn) + "/" + f1(x.hp) }));
+      }
+      tr.append(td);
+    });
+    const e = GA.elle[k.ad] || {};
+    const giris = (a1, a2, ad) => {
+      const td = el("td", { className: "elle" });
+      [a1, a2].forEach((a, j) => {
+        const i = el("input", { className: "tk-input dar", type: "number", step: "1", value: e[a] === undefined ? "" : e[a], placeholder: j ? "puan" : "nöbet" });
+        i.setAttribute("aria-label", k.ad + " " + ad + " " + (j ? "ödeme puanı" : "nöbet sayısı"));
+        i.onchange = () => {
+          const x = GA.elle[k.ad] || (GA.elle[k.ad] = {});
+          if (i.value === "") delete x[a]; else x[a] = +i.value;
+          if (!Object.keys(x).length) delete GA.elle[k.ad];
+          gecmisAyarYaz();
+          yenidenKur();
+        };
+        td.append(i);
+        if (!j) td.append(el("span", { className: "bolu", textContent: "/" }));
+      });
+      return td;
+    };
+    tr.append(giris("n", "p", "tuttuğu"), giris("hn", "hp", "hakkı"));
+    const g = V.gecmis && V.gecmis[k.ad];
+    const td = el("td", {});
+    td.dataset.kotu = g && (Math.abs(g.n) >= 1 || (!esit && Math.abs(g.p) >= 2)) ? "1" : "0";
+    td.append(g ? isr(g.n) + " / " + isr(g.p) : "0 / 0", el("small", { textContent: g ? (g.n > 0.05 ? "fazla tuttu, bu ay azalır" : g.n < -0.05 ? "eksik tuttu, bu ay artar" : "dengede") : "geçmiş yok" }));
+    tr.append(td);
+    t.append(tr);
+  });
+  p.append(t);
+  p.append(el("p", { className: "yardim", textContent: "Hücrelerde nöbet/puan yazar: 6/10, 6 nöbet ve 10 ödeme puanı demek; altında o ayın hakkı. Ay gezerken kendiliğinden oluşan listeler geçmişe katılmaz; yalnız Katılıyor yapılan aylar sayılır. Kayıtlı liste yoksa önceki aylarda gerçekte tuttuğunu ve hakkını Elle sütunlarına yaz (ör. tuttuğu 7/11, hakkı 6/10 → +1/+1). Toplam Fark: + fazla tutmuş, bu ay hedefinden düşülür; - eksik tutmuş, eklenir." }));
+}
+
+const GUNLER = [1, 2, 3, 4, 5, 6, 0];
+
+function kuralCiz() {
+  const p = $("#p-kural");
+  p.replaceChildren();
+  const K = V.kural;
+  const degis = () => { V.kural = MOTOR.kuralNorm(K); sakla(); kuralCiz(); sorunCiz(); yenidenKur(); };
+  const sat = el("div", { className: "kural-ust" });
+  const ard = el("button", { type: "button", className: "dgm dgm-ac", textContent: "Art Arda Nöbet Yasak: " + (K.ardArda ? "Açık" : "Kapalı") });
+  ard.setAttribute("aria-pressed", String(K.ardArda));
+  ard.onclick = () => { K.ardArda = !K.ardArda; degis(); };
+  const ag = el("label", { className: "alan" });
+  const s = el("select", { className: "tk-input" });
+  [["puan", "Ödeme Puanına Göre (Cum 2, Cmt 3, Paz 2, diğer 1)"], ["esit", "Tüm Günler Eşit (her gün 1)"]].forEach(([v, m]) => s.append(el("option", { value: v, textContent: m, selected: K.odemeModu === v })));
+  s.onchange = () => { K.odemeModu = s.value; degis(); };
+  ag.append(el("span", { textContent: "Gün Ağırlığı" }), s);
+  sat.append(ard, ag);
+  p.append(sat);
+  const t = el("table", { className: "analiz kural" });
+  const b = el("tr");
+  ["Durum", "Bu Günün Nöbetinden Sonra", "Boş Kalacak Günler", "Hangi Haftalar", "Kesin", ""].forEach(m => b.append(el("th", { scope: "col", textContent: m })));
+  t.append(b);
+  K.sonraBos.forEach((r, i) => {
+    const tr = el("tr");
+    const ac = el("button", { type: "button", className: "dgm dgm-ac", textContent: r.acik ? "Açık" : "Kapalı" });
+    ac.setAttribute("aria-pressed", String(r.acik));
+    ac.onclick = () => { r.acik = !r.acik; degis(); };
+    tr.append(el("td", {})); tr.lastChild.append(ac);
+    const gs = el("select", { className: "tk-input" });
+    gs.setAttribute("aria-label", (i + 1) + ". kural günü");
+    GUNLER.forEach(w => gs.append(el("option", { value: String(w), textContent: MOTOR.GUN[w], selected: r.gun === w })));
+    gs.onchange = () => { r.gun = +gs.value; r.bos = []; degis(); };
+    tr.append(el("td", {})); tr.lastChild.append(gs);
+    const kt = el("td", { className: "kural-gun" });
+    for (let o = 1; o <= 6; o++) {
+      const w = (r.gun + o) % 7;
+      const lb = el("label", { className: "kutu" });
+      const c = el("input", { type: "checkbox", checked: r.bos.includes(w) });
+      c.onchange = () => { r.bos = c.checked ? [...r.bos, w] : r.bos.filter(x => x !== w); degis(); };
+      lb.append(c, MOTOR.KISA[w]);
+      kt.append(lb);
+    }
+    tr.append(kt);
+    const ks = el("select", { className: "tk-input" });
+    ks.setAttribute("aria-label", (i + 1) + ". kural kapsamı");
+    [["hepsi", "Her " + MOTOR.GUN[r.gun]], ["ilk", "Yalnız Ayın İlk " + MOTOR.GUN[r.gun] + " Günü"], ["son", "Yalnız Ayın Son " + MOTOR.GUN[r.gun] + " Günü"]].forEach(([v, m]) => ks.append(el("option", { value: v, textContent: m, selected: r.kapsam === v })));
+    ks.onchange = () => { r.kapsam = ks.value; degis(); };
+    tr.append(el("td", {})); tr.lastChild.append(ks);
+    const kl = el("label", { className: "kutu" });
+    const kc = el("input", { type: "checkbox", checked: r.kesin });
+    kc.onchange = () => { r.kesin = kc.checked; degis(); };
+    kl.append(kc, "Kesin");
+    tr.append(el("td", {})); tr.lastChild.append(kl);
+    const sil = el("button", { type: "button", className: "dgm", textContent: "Sil" });
+    sil.onclick = () => { K.sonraBos.splice(i, 1); degis(); };
+    tr.append(el("td", {})); tr.lastChild.append(sil);
+    t.append(tr);
+  });
+  p.append(t);
+  const ekle = el("button", { type: "button", className: "dgm", textContent: "Kural Ekle" });
+  ekle.onclick = () => { K.sonraBos.push({ gun: 4, bos: [5, 6, 0], kapsam: "hepsi", kesin: false, acik: true }); degis(); };
+  const varsay = el("button", { type: "button", className: "dgm", textContent: "Varsayılana Dön" });
+  varsay.onclick = () => { V.kural = MOTOR.kuralNorm(null); sakla(); kuralCiz(); sorunCiz(); yenidenKur(); };
+  const alt = el("div", { className: "kural-ust" });
+  alt.append(ekle, varsay);
+  p.append(alt);
+  p.append(el("p", { className: "yardim", textContent: "Örnek: Perşembe → Cum, Cmt, Paz işaretli ve Yalnız Ayın İlk Perşembe Günü seçili ise yalnız ilk perşembe nöbetçisinin o hafta sonu boş kalır; sonraki perşembelere dokunulmaz. Kesin işaretli değilse kural güçlü bir tercihtir, gerekirse çiğnenir ve Sorunlar'da yazar. Tüm Günler Eşit seçilince ödeme puanı yok sayılır, herkes nöbet sayısı payına göre her gün türünden eşit alır." }));
 }
 
 function altCiz() {
@@ -394,7 +569,7 @@ function ayPanelCiz() {
   $("#btnUret").textContent = CALISIYOR ? "Durdur" : "Listeyi Oluştur";
 }
 
-function ciz() { listeCiz(); ozetCiz(); sorunCiz(); analizCiz(); altCiz(); ayPanelCiz(); }
+function ciz() { listeCiz(); ozetCiz(); sorunCiz(); analizCiz(); gecmisCiz(); altCiz(); ayPanelCiz(); }
 
 function ustOku() {
   const k = Math.min(12, Math.max(1, +$("#kisi").value || V.kisi));
@@ -463,6 +638,7 @@ function git(y, a) {
   $("#kisi").value = V.kisi;
   kadroCiz();
   istekCiz();
+  kuralCiz();
   if (!L) uret(); else { sakla(); ciz(); }
 }
 
@@ -497,8 +673,8 @@ $("#yilIleri").onclick = () => git(V.yil + 1, V.ay);
 $("#btnSonraki").onclick = () => ayKay(1);
 document.querySelectorAll(".ay-dgm").forEach((b, i) => { b.onclick = () => git(V.yil, i + 1); });
 
-const SEKMELER = ["ozet", "sorun", "istek", "analiz", "kadro", "alt"];
-const GENIS = ["istek", "analiz"];
+const SEKMELER = ["ozet", "sorun", "istek", "analiz", "gecmis", "kural", "kadro", "alt"];
+const GENIS = ["istek", "analiz", "gecmis", "kural"];
 function sekme(ad) {
   document.querySelector(".govde").dataset.genis = GENIS.includes(ad) ? "1" : "0";
   SEKMELER.forEach(s => {
@@ -530,6 +706,7 @@ SEKMELER.forEach((s, i) => {
   $("#kisi").value = V.kisi;
   kadroCiz();
   istekCiz();
+  kuralCiz();
   if (!L) uret(); else ciz();
 })();
 
