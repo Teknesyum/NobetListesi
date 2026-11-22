@@ -246,10 +246,10 @@ table.liste td.duz { color: var(--tk-text); font-weight: var(--tk-fw-semi); }
 .sec:active { background: var(--tk-surface); color: var(--tk-renk-1); }
 .sec[data-kotu="1"] { color: var(--tk-warning); }
 table.liste .sec { min-height: 0; }
-[data-takas="yesil"] { --takas: color-mix(in srgb, var(--tk-success) 28%, transparent); }
-[data-takas="sari"] { --takas: color-mix(in srgb, var(--tk-warning) 32%, transparent); }
-[data-takas="turuncu"] { --takas: color-mix(in srgb, color-mix(in srgb, var(--tk-danger) 50%, var(--tk-warning)) 36%, transparent); }
-[data-takas="kirmizi"] { --takas: color-mix(in srgb, var(--tk-danger) 28%, transparent); }
+[data-takas="yesil"] { --takas: var(--tk-success); }
+[data-takas="sari"] { --takas: var(--tk-warning); }
+[data-takas="turuncu"] { --takas: color-mix(in srgb, var(--tk-danger) 50%, var(--tk-warning)); }
+[data-takas="kirmizi"] { --takas: var(--tk-danger); }
 table.liste td.hucre.kaynak, table.cetele td.kaynak { outline: var(--tk-focus-w) solid var(--tk-renk-1); outline-offset: calc(-1 * var(--tk-focus-w)); }
 table.liste td.hucre[data-pin="1"] { outline: var(--tk-border-w) solid var(--tk-renk-1); outline-offset: calc(-1 * var(--tk-border-w)); }
 table.liste td.hucre[data-pin="1"] .sec { color: var(--tk-renk-1); }
@@ -259,7 +259,7 @@ table.cetele.etk td.vurgu, table.cetele.etk tr.vurgu td { background-image: line
 table.cetele.etk .ad-dgm[aria-pressed="true"] { color: var(--tk-renk-1); }
 table.cetele.etk .gun-dgm { min-height: 0; text-align: center; font-weight: inherit; }
 table.cetele.etk td.tasin { cursor: grab; }
-table.liste td.hucre[data-takas], table.cetele.etk td.gh[data-takas] { background-image: linear-gradient(var(--takas), var(--takas)); }
+table.liste td.hucre[data-takas], table.liste td.hucre[data-takas] .sec, table.cetele.etk td.gh[data-takas] { color: var(--takas); font-weight: var(--tk-fw-semi); }
 body.suruk, body.suruk * { cursor: grabbing; user-select: none; }
 .kayit-grup { display: inline-flex; flex-wrap: wrap; align-items: center; min-width: 0; }
 .kayit-etiket { font-size: var(--tk-fs-1); color: var(--tk-text-label); padding: 0 var(--tk-sp-1); }
@@ -292,6 +292,8 @@ table.tablo.analiz { width: auto; }
 table.tablo.analiz th, table.tablo.analiz td { padding: 0 var(--tk-sp-2); line-height: var(--tk-lh-heading); }
 table.tablo.analiz th { position: sticky; top: 0; z-index: 1; background: var(--tk-surface); }
 .analiz-kap { max-height: 100%; }
+table.tablo.analiz td:not(.ad) small { visibility: hidden; }
+table.tablo.analiz td:hover small, body.sag-ctrl table.tablo.analiz td small { visibility: visible; }
 table.tablo small { display: block; color: var(--tk-text-label); font-weight: var(--tk-fw-body); }
 table.tablo td[data-kotu="1"] { color: var(--tk-warning); font-weight: var(--tk-fw-semi); }
 table.tablo td[data-iyi="1"] { color: var(--tk-success); }

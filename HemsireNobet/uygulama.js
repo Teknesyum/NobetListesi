@@ -796,6 +796,7 @@ function analizCiz() {
   ["Ad", "Nöbet", "Ödeme"].concat(MOTOR.TIP_AD, ["İstek", "İstemez", "Geçmiş"]).forEach(m => b.append(el("th", { scope: "col", textContent: m })));
   t.append(b);
   basYardim(t, { Ad: "Hemşirenin adı; altında üyesi olduğu gruplar.", "Nöbet": "Bu ay tuttuğu nöbet; altında hedefi. Hedef, kadro payı ve geçmiş aylardaki fark hesaba katılarak bulunur. Uyarı rengi: hedeften 1,5 ya da daha çok sapma.", "Ödeme": "Bu ay aldığı ödeme puanı; altında hedefi. Hedef nöbet sayısıyla orantılıdır. " + GUN_PUAN, Pzt: "Pazartesi nöbeti; altında beklenen (~).", Sal: "Salı nöbeti; altında beklenen (~).", "Çar": "Çarşamba nöbeti; altında beklenen (~).", Per: "Perşembe nöbeti; altında beklenen (~).", Cum: "Cuma nöbeti; altında beklenen (~).", Cmt: "Cumartesi nöbeti; altında beklenen (~).", Paz: "Pazar ve resmi tatil nöbeti; altında beklenen (~).", "İstek": "Verilen / istenen (✓) gün sayısı. “eksik” ise isteklerinin bir kısmı karşılanamadı.", "İstemez": "İstemediği (✗) güne yazılma / toplam ✗. Altında: art arda nöbet sayısı ve perşembe kuralının çiğnendiği hafta sayısı.", "Geçmiş": "Önceki aylarda hakkından fazla (+) ya da eksik (−) tuttuğu nöbet; altında ödeme puanı farkı." });
+  yd(t, "Analiz", "Her hücrenin altındaki mavi değer (hedef, beklenen, ayrıntı) fare o hücreye gelince görünür. Hepsini birden görmek için sağ Ctrl'yi basılı tut.");
   const hucre = (ana, alt, kotu) => {
     const td = el("td", {});
     td.dataset.kotu = kotu ? "1" : "0";
@@ -821,7 +822,7 @@ function analizCiz() {
   const kap = el("div", { className: "istek-kap analiz-kap" });
   kap.append(t);
   p.append(kap);
-  p.append(yardim("Nöbet ve Ödeme: geçmiş aylar düşüldükten sonraki hedef. Pzt…Paz: o günlerdeki nöbet ve beklenen (tatiller Paz sütununda). İstek: verilen / istenen. İstemez: istemediği güne yazılan / toplam. Geçmiş: önceki aylarda hakkından fazla (+) ya da eksik (−)."));
+  p.append(yardim("Hücrenin altındaki mavi değer fare üstüne gelince görünür; hepsi için sağ Ctrl'yi basılı tut. Nöbet ve Ödeme: geçmiş aylar düşüldükten sonraki hedef. Pzt…Paz: o günlerdeki nöbet ve beklenen (tatiller Paz sütununda). İstek: verilen / istenen. İstemez: istemediği güne yazılan / toplam. Geçmiş: önceki aylarda hakkından fazla (+) ya da eksik (−)."));
 }
 
 function kadroCiz() {
@@ -1616,7 +1617,7 @@ const YARDIM = [
   ["#btnKopya", "Excel'e Kopyala", "Listeyi panoya kopyalar, Excel'e yapıştırılır."],
   ["#btnCsv", "CSV Kaydet", "Listeyi CSV dosyası olarak kaydeder."],
   ["#btnYazdir", "Yazdır", "Yalnız listeyi yazdırır."],
-  ["#liste", "Nöbet Listesi", "Tıkla: kişiyi seç. Sürükle: başka bir hücreyle yer değiştir; sürüklerken yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği bozulur, kırmızı kural bozulur. Sağ tık: hücreyi sabitle, Listeyi Oluştur onu korur. Uyarı renkli yazı istemediği güne ya da art arda nöbete düşmüş demek."],
+  ["#liste", "Nöbet Listesi", "Tıkla: kişiyi seç. Sürükle: başka bir hücreyle yer değiştir; sürüklerken hücre yazısı renklenir: yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği bozulur, kırmızı kural bozulur. Sağ tık: hücreyi sabitle, Listeyi Oluştur onu korur. Uyarı renkli yazı istemediği güne ya da art arda nöbete düşmüş demek."],
   ["table.istek .ad-dgm", "İsim", "Tıkla: bütün ayı ✗ yap. Bir daha tıkla: geri al."],
   ["table.istek .hc", "İstek Kutusu", "Sol tık ✓, sağ tık ✗, aynı tık boşaltır. Sürükleyerek boya. Sol Ctrl + tık: o haftanın Pzt–Cum günleri ✗."],
   ["#btnIstekSifir", "Tüm İstekleri Sıfırla", "Bu ayın bütün ✓ ve ✗ işaretlerini siler. Yanlışlıkla silinmesin diye iki kez basılır: ilk basışta düğme onay ister, 3 saniye içinde bir daha basarsan siler."],
@@ -1712,12 +1713,12 @@ function simdiMetni() {
     balon.style.left = x + "px";
     balon.style.top = y + "px";
   };
-  const kapat = () => { basili = false; balon.hidden = true; };
+  const kapat = () => { basili = false; balon.hidden = true; document.body.classList.remove("sag-ctrl"); };
   document.addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; if (basili) goster(); }, true);
   document.addEventListener("keydown", e => {
     if (e.code === "ControlRight" || e.code === "ControlLeft") $("#ipucuBar").hidden = true;
     if (e.code === "ControlRight") {
-      if (!basili) { basili = true; goster(); }
+      if (!basili) { basili = true; document.body.classList.add("sag-ctrl"); goster(); }
       if (!AYAR.yardimGoruldu) ayarYaz({ yardimGoruldu: true });
       e.preventDefault();
       return;
