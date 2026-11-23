@@ -10,12 +10,12 @@ contextBridge.exposeInMainWorld("pencere", {
   buyult: () => ipcRenderer.send("pencere:buyult"),
   kapat: () => ipcRenderer.send("pencere:kapat"),
   ac: u => ipcRenderer.send("pencere:ac", u),
-  yazdir: () => ipcRenderer.invoke("pencere:yazdir"),
+  yazdir: h => ipcRenderer.invoke("pencere:yazdir", !!h),
   dosyaYaz: (ad, metin, tur) => ipcRenderer.invoke("pencere:dosyaYaz", { ad, metin, tur }),
   guncelle: {
     surum: () => ipcRenderer.invoke("guncelle:surum"),
     denetle: () => ipcRenderer.invoke("guncelle:denetle"),
-    uygula: () => ipcRenderer.invoke("guncelle:uygula"),
+    uygula: sessiz => ipcRenderer.invoke("guncelle:uygula", !!sessiz),
     ilerle: cb => ipcRenderer.on("guncelle:ilerle", (e, d) => cb(d))
   },
   durum: cb => ipcRenderer.on("pencere:durum", (e, buyuk) => cb(buyuk)),

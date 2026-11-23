@@ -33,7 +33,7 @@
 </header>
 
 <div class="kabuk">
-  <div class="ipucu-bar" id="ipucuBar" role="status" hidden>Rehberi açmak için <kbd>sağ Ctrl</kbd> tuşunu basılı tut. Fare hangi düğmenin üstündeyse onu ve şimdi ne yapılacağını anlatır. <span class="ipucu-kapat">Kapatmak için tıkla ya da Ctrl'ye bas.</span></div>
+  <div class="ipucu-bar" id="ipucuBar" role="status" hidden>Rehberi açmak için <kbd>sağ Ctrl</kbd> tuşunu basılı tut. Fare hangi düğmenin üstündeyse onu ve şimdi ne yapılacağını anlatır. <span class="ipucu-kapat">Kapatmak için tıkla ya da sağ Ctrl'ye bas.</span></div>
   <div class="ust">
     <div class="aypanel" role="group" aria-label="Ay Seçimi">
       <button type="button" class="dgm dgm-kare" id="yilGeri" aria-label="Önceki Yıl">‹</button>
@@ -91,7 +91,8 @@
         </span>
         <button type="button" class="dgm" id="btnKopya">Excel'e Kopyala</button>
         <button type="button" class="dgm" id="btnCsv">CSV Kaydet</button>
-        <button type="button" class="dgm" id="btnYazdir">Yazdır</button>
+        <button type="button" class="dgm" id="btnOnizle">Baskı Önizleme</button>
+        <button type="button" class="dgm" id="btnHizli">Hızlı Yazdır</button>
       </div>
       <div class="liste-kap"><table class="liste" id="liste"></table></div>
     </section>
@@ -119,6 +120,17 @@
     <div class="gnc-eylem">
       <button type="button" class="dgm dgm-birincil" id="gncEvet">Güncelle</button>
       <button type="button" class="dgm" id="gncSonra">Sonra</button>
+    </div>
+  </div>
+</div>
+<div class="gnc-ort" id="onizPanel" role="dialog" aria-modal="true" aria-labelledby="onizBaslik" hidden>
+  <div class="gnc-kutu onizle-kutu">
+    <h2 class="gnc-baslik" id="onizBaslik">Baskı Önizleme</h2>
+    <div class="onizle-alan" id="onizAlan"></div>
+    <div class="gnc-eylem">
+      <button type="button" class="dgm dgm-birincil" id="btnOnizYazdir">Yazdır</button>
+      <button type="button" class="dgm" id="btnOnizHizli">Hızlı Yazdır</button>
+      <button type="button" class="dgm" id="btnOnizKapat">Kapat</button>
     </div>
   </div>
 </div>

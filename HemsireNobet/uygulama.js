@@ -460,7 +460,7 @@ function hucreSurukle(e, d, y) {
   }, () => {
     const s = SECLER[d][y];
     s.focus();
-    try { s.showPicker(); } catch (x) {}
+    secAc(s, d, y);
   }, ev => {
     const td = ev.target && ev.target.closest && ev.target.closest("td.hucre");
     const r = td && sonuc.find(x => x.d === +td.dataset.d && x.y === +td.dataset.y);
@@ -499,6 +499,61 @@ function nobetSayac(k, sonra) {
   return sp;
 }
 
+let SECPOP = null;
+
+function secKapat() {
+  if (!SECPOP) return;
+  const p = SECPOP;
+  SECPOP = null;
+  document.removeEventListener("mousedown", p.dis, true);
+  document.removeEventListener("keydown", p.tus, true);
+  p.el.remove();
+  if (!p.yok) ceteleCiz();
+}
+
+function secAc(s, d, y) {
+  secKapat();
+  const yan = $("#p-liste");
+  if (!L || CALISIYOR || s.disabled || yan.hidden) return;
+  const pop = el("div", { className: "sec-pop" });
+  pop.setAttribute("role", "listbox");
+  pop.setAttribute("aria-label", tarihMetin(d) + " nöbetçi " + (y + 1));
+  const ayni = new Set((L[d] || []).filter((v, i) => i !== y));
+  const sira = V.kisiler.map((k, i) => ({ ad: k.ad, i })).sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
+  const kap = el("div", { className: "sec-liste" });
+  let onceki = "";
+  [{ ad: "Boş", i: -1 }].concat(sira).forEach(o => {
+    const b = el("button", { type: "button", className: "sec-oge" });
+    b.setAttribute("role", "option");
+    const ilk = o.ad.charAt(0);
+    b.append(el("span", { className: "sec-ilk", textContent: ilk }), document.createTextNode(o.ad.slice(1)));
+    const harf = ilk.toLocaleUpperCase("tr");
+    if (o.i >= 0 && harf !== onceki && onceki) b.dataset.yeni = "1";
+    if (o.i >= 0) onceki = harf;
+    b.setAttribute("aria-selected", String(o.i === +s.value));
+    if (o.i >= 0 && ayni.has(o.i)) { b.dataset.var = "1"; b.title = "Bu gün başka bir kutuda zaten yazılı"; }
+    b.onclick = () => {
+      secKapat();
+      s.value = String(o.i);
+      s.dispatchEvent(new Event("change"));
+    };
+    kap.append(b);
+  });
+  pop.append(el("h3", { className: "sec-baslik", textContent: tarihMetin(d) + " · Nöbetçi " + (y + 1) }), kap, el("p", { className: "sec-ipucu", textContent: "Kapatmak için boşluğa tıkla ya da sağ Ctrl'ye bas." }));
+  yan.replaceChildren(pop);
+  const oge = kap.firstChild.offsetHeight || 1;
+  const bos = yan.clientHeight - (pop.offsetHeight - kap.offsetHeight) - 2 * oge;
+  const sat = Math.max(1, Math.min(kap.children.length, Math.floor(bos / oge)));
+  kap.style.gridTemplateRows = "repeat(" + sat + ", auto)";
+  const dis = e => { if (!pop.contains(e.target)) secKapat(); };
+  const tus = e => { if (e.code === "ControlRight" || e.key === "Escape") secKapat(); };
+  document.addEventListener("mousedown", dis, true);
+  document.addEventListener("keydown", tus, true);
+  SECPOP = { el: pop, dis, tus };
+  const secili = kap.querySelector('[aria-selected="true"]');
+  if (secili) secili.focus();
+}
+
 function listeCiz() {
   const G = MOTOR.gunSayisi(V);
   $("#baslik").textContent = (AYLAR[V.ay - 1] + " " + V.yil + " Ameliyathane Hemşire Nöbet Listesi").toLocaleUpperCase("tr");
@@ -527,7 +582,18 @@ function listeCiz() {
       const s = el("select", { className: "sec" });
       s.setAttribute("aria-label", tarihMetin(d) + " nöbetçi " + (y + 1));
       s.append(el("option", { value: "-1", textContent: "—" }));
-      V.kisiler.forEach((k, i) => s.append(el("option", { value: String(i), textContent: k.ad })));
+      V.kisiler.map((k, i) => ({ ad: k.ad, i })).sort((a, b) => a.ad.localeCompare(b.ad, "tr")).forEach(o => s.append(el("option", { value: String(o.i), textContent: o.ad })));
+      s.addEventListener("mousedown", e => {
+        if (s.disabled || e.button !== 0) return;
+        if (L && L[d] && L[d][y] !== undefined) return;
+        e.preventDefault();
+        secAc(s, d, y);
+      });
+      s.addEventListener("keydown", e => {
+        if (s.disabled || !["Enter", " ", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+        e.preventDefault();
+        secAc(s, d, y);
+      });
       s.onchange = () => {
         if (!L) return;
         const v = +s.value;
@@ -573,7 +639,11 @@ function listeDoldur(liste, oniz) {
   }
 }
 
-function ceteleTablo(satirlar, gecmisVar, etk) {
+function ceteleTablo(satirlar, gecmisVar, etk, ob) {
+  ob = ob || {};
+  const yar = etk || ob.yardim;
+  const gecBas = ob.gecBas || "GEÇMİŞ";
+  const gecOn = ob.gecOn || "önceki aylarda";
   const t = el("table", { className: "tablo cetele" + (etk ? " etk" : "") });
   const b = el("tr");
   b.append(el("th", { scope: "col", textContent: "Ad" }));
@@ -589,7 +659,7 @@ function ceteleTablo(satirlar, gecmisVar, etk) {
     b.append(th);
   });
   b.append(el("th", { scope: "col", textContent: "NÖBET" }));
-  if (gecmisVar) b.append(el("th", { scope: "col", textContent: "GEÇMİŞ" }));
+  if (gecmisVar) b.append(el("th", { scope: "col", textContent: gecBas }));
   t.append(b);
   const gn = etk && L ? MOTOR.gunNeden(V, L) : null;
   if (gn) [...b.cells].slice(1, 8).forEach((th, i) => yd(th, CETELE_AD[i] + " Dağılımı", gn[i].genel + "\n\n" + CETELE_BAS[CETELE_AD[i]] + " Tıkla: bu günler listede yanar."));
@@ -626,8 +696,17 @@ function ceteleTablo(satirlar, gecmisVar, etk) {
     const np = ikili("np", r.n, f1(r.p));
     if (r.hedef) np.title = "Hedef " + r.hedef;
     if (r.iyi) { np.dataset.iyi = "1"; np.title = (np.title ? np.title + ". " : "") + r.iyi; }
+    if (yar) yd(np, "Nöbet / Ödeme", r.ad + ": " + r.n + " nöbet (mavi) / " + f1(r.p) + " ödeme puanı (yeşil)." + (r.hedef ? " Bu ayki hedef: " + r.hedef.replace("/", " nöbet / ") + " puan." : "") + (r.iyi ? " " + r.iyi + "." : "") + " Asıl ölçü ödeme puanıdır.");
     tr.append(np);
-    if (gecmisVar) tr.append(r.gec ? ikili("gec", isr(r.gec.n), isr(r.gec.p)) : el("td", { className: "gec", textContent: "—" }));
+    if (gecmisVar) {
+      const gh = el("td", { className: "gec" });
+      if (r.gec) {
+        gh.append(el("span", { className: "puan", textContent: isr(r.gec.p) }));
+        gh.title = "Nöbet farkı: " + isr(r.gec.n) + " nöbet";
+      } else gh.textContent = "—";
+      if (yar) yd(gh, gecBas, r.gec ? r.ad + ": " + gecOn + " hakkından " + gecFarkMetin(r.gec.p, "ödeme puanı") + " (yeşil, asıl ölçü). Nöbet olarak " + gecFarkMetin(r.gec.n, "nöbet") + ": sayıya fareyle gelince görünür. + fazla, − eksik demek. Bu fark bir anda değil, ayda yaklaşık bir nöbet kapatılır." : r.ad + ": geçmiş ay kaydı yok, fark hesaplanamadı.");
+      tr.append(gh);
+    }
     t.append(tr);
   });
   const tr = el("tr", { className: "toplam" });
@@ -639,9 +718,17 @@ function ceteleTablo(satirlar, gecmisVar, etk) {
   return t;
 }
 
+function gecFarkMetin(x, ad) {
+  return x > 0 ? x + " " + ad + " fazla tutmuş" : x < 0 ? (-x) + " " + ad + " eksik tutmuş" : "fark yok";
+}
+
+function genelAyRows(gs) {
+  return gs.map(r => ({ ad: r.ad, hg: r.hg, n: r.n, p: r.p, hedef: f1(r.hn) + "/" + f1(r.hp), iyi: "", gec: { n: Math.round(r.fn), p: Math.round(r.fp) } }));
+}
+
 function ikili(sinif, a, b) {
   const td = el("td", { className: sinif });
-  td.append(el("span", { className: "sayi", textContent: String(a) }), el("span", { className: "puan", textContent: String(b) }));
+  td.append(el("span", { className: "sayi", textContent: String(a) }), el("span", { className: "ayrac", textContent: " / " }), el("span", { className: "puan", textContent: String(b) }));
   return td;
 }
 
@@ -682,16 +769,48 @@ function verSurukle(e, p, i) {
   });
 }
 
+const SIG_ALT = 0.5;
+
 function sigdir() {
-  document.querySelectorAll("#p-liste .istek-kap").forEach(k => {
+  const lt = $("#liste"), lk = lt && lt.parentElement;
+  if (lt && lk && lk.clientHeight > 0) {
+    lt.style.zoom = "";
+    lt.style.width = "";
+    lt.style.height = "";
+    const g = lk.clientHeight;
+    let z = 1;
+    for (let i = 0; i < 5 && z > SIG_ALT; i++) {
+      const h = lt.getBoundingClientRect().height;
+      if (h <= g) break;
+      z = Math.max(SIG_ALT, Math.floor(z * g / h * 1000) / 1000);
+      lt.style.zoom = String(z);
+    }
+  }
+  const p = $("#p-liste");
+  const cs = getComputedStyle(p);
+  const ic = p.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const bosluk = parseFloat(cs.rowGap) || 0;
+  p.querySelectorAll(".istek-kap").forEach(k => {
     const t = k.querySelector("table");
     if (!t) return;
     t.style.zoom = "";
-    const g = k.clientWidth, w = t.offsetWidth;
-    if (g > 0 && w > g) t.style.zoom = String(Math.floor(g / w * 1000) / 1000);
+    const diger = [...p.children].filter(c => c !== k).reduce((s, c) => s + c.offsetHeight, 0) + bosluk * (p.children.length - 1);
+    const gw = k.clientWidth, gh = ic - diger - 2;
+    let z = 1;
+    for (let i = 0; i < 5 && z > SIG_ALT; i++) {
+      const w = t.getBoundingClientRect().width, h = t.getBoundingClientRect().height;
+      const o = Math.min(gw > 0 && w > gw ? gw / w : 1, gh > 0 && h > gh ? gh / h : 1);
+      if (o >= 1) break;
+      z = Math.max(SIG_ALT, Math.floor(z * o * 1000) / 1000);
+      t.style.zoom = String(z);
+    }
   });
 }
-window.addEventListener("resize", () => requestAnimationFrame(sigdir));
+let sigBekle = 0;
+const sigPlan = () => { cancelAnimationFrame(sigBekle); sigBekle = requestAnimationFrame(sigdir); };
+window.addEventListener("resize", sigPlan);
+if (window.ResizeObserver) { const ro = new ResizeObserver(sigPlan); ro.observe($("#p-liste")); ro.observe($(".liste-kap")); }
+new MutationObserver(sigPlan).observe($("#liste"), { childList: true });
 
 const kabulMu = () => !!L && GA.aylar[ayKod(V.yil, V.ay)] === true;
 
@@ -722,25 +841,38 @@ function kabulDegistir() {
   toast(k ? AYLAR[V.ay - 1] + " " + V.yil + " genel çeteleye eklendi. Sonraki ay bu farkları kapatır." : AYLAR[V.ay - 1] + " " + V.yil + " genel çeteleden çıkarıldı.", k ? "success" : "info");
 }
 
+let CETELE_GOR = "ay";
+
 function ceteleCiz() {
   const p = $("#p-liste");
   p.replaceChildren();
-  p.append(baslik("Çetele: " + AYLAR[V.ay - 1] + " " + V.yil));
+  const ayMi = CETELE_GOR === "ay";
+  const ayAd = AYLAR[V.ay - 1];
+  const sek = el("div", { className: "cetele-sek", role: "tablist" });
+  [["ay", ayAd + " Çetelesi", "Bu ayın çetelesi: kim hangi günden kaç nöbet tutuyor."], ["genel", "Genel Çetele", "Önceki aylar ve bu ay toplamı, aynı tabloda. Liste kabul edilirse genel çetelenin alacağı hal."]].forEach(([k, ad, yz]) => {
+    const d = yd(el("button", { type: "button", className: "dgm", id: "sek-" + k, role: "tab", textContent: ad }), ad, yz + " Aynı tablo düzeni, ikisi de yazdırılan kâğıda girer.");
+    d.setAttribute("aria-selected", String(CETELE_GOR === k));
+    d.onclick = () => { CETELE_GOR = k; ceteleCiz(); const n = $("#sek-" + k); if (n) n.focus(); };
+    sek.append(d);
+  });
+  p.append(sek);
   const kb = yd(el("button", { type: "button", className: kabulMu() ? "dgm" : "dgm dgm-birincil", id: "btnKabul", textContent: kabulMu() ? "Kabulü Geri Al" : "Listeyi Kabul Et" }), "Listeyi Kabul Et", "Bu ayın listesini genel çeteleye ekler: sonraki ay oluşturulurken bu ayın ±1 farkları kapatılır. Kabul edildiyse düğme Kabulü Geri Al olur ve ayı çeteleden çıkarır.");
   kb.disabled = !L || CALISIYOR;
   kb.onclick = kabulDegistir;
+  if (ayMi) {
   const rows = ayRows();
   const kap = el("div", { className: "istek-kap", id: "ceteleAy" });
   kap.append(basYardim(ceteleTablo(rows, true, true), CETELE_BAS));
   p.append(kap);
   if (L) p.append(yardim("Ada tıkla: nöbetleri listede yanar. Gün başlığına ya da hücreye tıkla: o günler yanar. Bir gün sayısını başka birinin aynı sütununa sürükle: kırmızıda bırakırsan taşınır. Gün dağılımının nedeni için başlığın ya da hücrenin üstünde sağ Ctrl'yi basılı tut."));
   else p.append(yardim("Liste henüz oluşturulmadı. Üstteki Listeyi Oluştur düğmesine bas."));
-  p.append(baslik("Genel Çetele Önizleme", "h3"));
+  } else {
   const gs = genelSatir(true);
   const kg = el("div", { className: "istek-kap", id: "ceteleGenel" });
-  kg.append(genelTablo(gs, false));
+  kg.append(basYardim(ceteleTablo(genelAyRows(gs), true, false, { gecBas: "FARK", gecOn: "genel çetelede", yardim: true }), CETELE_BAS));
   p.append(kg);
   farkNot(p, gs);
+  }
   p.append(satir(kb));
   requestAnimationFrame(sigdir);
   ceteleSon(p);
@@ -904,6 +1036,7 @@ function genelTablo(rows, duzenle) {
     tp.title = "Hakkı " + f1(r.hp);
     tr.append(tn, tp);
     const fk = ikili("np fark", isr(Math.round(r.fn)), isr(Math.round(r.fp)));
+    yd(fk, "Fark", r.ad + ": " + gecFarkMetin(Math.round(r.fn), "nöbet") + " (mavi), " + gecFarkMetin(Math.round(r.fp), "ödeme puanı") + " (yeşil). + hakkından fazla, − eksik demek. Sonraki ay bu fark ayda yaklaşık bir nöbet kapatılır.");
     fk.title = isr(r.fn) + " nöbet, " + isr(r.fp) + " puan" + (r.tl ? " (telafi " + isr(r.tl) + " dahil)" : "");
     if (Math.abs(r.fp) > FARK_ESIK) fk.dataset.kotu = "1";
     else if (Math.abs(r.fp) >= 0.5) fk.dataset.iyi = "1";
@@ -1654,7 +1787,7 @@ function genelCiz() {
     const s = el("div", { className: "ayar-sat" });
     const sol = el("div");
     sol.append(el("strong", { textContent: bas }), yardim(ac));
-    s.append(sol, yd(kontrol, bas, ac + (kontrol.tagName === "BUTTON" ? "\n\nTıklayınca açılır ya da kapanır; hemen kaydedilir." : "\n\n− ve + ile ayarla; hemen kaydedilir.")));
+    s.append(sol, yd(kontrol, bas, ac + (kontrol.tagName === "BUTTON" ? "\n\nŞu an " + kontrol.textContent.toLocaleLowerCase("tr") + ": " + (kontrol.getAttribute("aria-pressed") === "true" ? "kapatmak" : "açmak") + " için tıkla; hemen kaydedilir. Bu açıklamayı görmek için sağ Ctrl'yi basılı tut." : "\n\n− ve + ile ayarla; hemen kaydedilir.")));
     l.append(s);
   };
   sat("Güncellemeden Önce Sor", "Açıkken yeni sürüm bulununca kurmadan önce sorar; kapalıyken kendiliğinden kurar.",
@@ -1821,7 +1954,11 @@ const YARDIM = [
   ["table.cetele.etk td.tasin", "Nöbet Ver", "Başka birinin aynı sütununa sürükle: o günün nöbetini ona ver. Sürüklerken yeşil sorunsuz, sarı bir kişinin isteği, turuncu iki kişinin isteği bozulur, kırmızı kural bozulur."],
   ["#btnKopya", "Excel'e Kopyala", "Listeyi panoya kopyalar, Excel'e yapıştırılır."],
   ["#btnCsv", "CSV Kaydet", "Listeyi CSV dosyası olarak kaydeder."],
-  ["#btnYazdir", "Yazdır", "Listeyi ve bu ayın çetelesini yan yana, A4 yatay tek sayfaya sığacak şekilde yazdırır."],
+  ["#btnOnizle", "Baskı Önizleme", "Kâğıda çıkacak sayfaları önce ekranda gösterir: 1. sayfa liste ve bu ayın çetelesi, 2. sayfa genel çetele. Beğenirsen önizlemeden Yazdır'a basarsın."],
+  ["#btnHizli", "Hızlı Yazdır", "Önizleme ve yazıcı penceresi açmadan, iki sayfayı doğrudan varsayılan yazıcıya gönderir."],
+  ["#btnOnizYazdir", "Yazdır", "Önizlemedeki sayfaları yazıcı penceresini açarak yazdırır; yazıcıyı ve kopya sayısını orada seçersin."],
+  ["#btnOnizHizli", "Hızlı Yazdır", "Yazıcı penceresi açmadan doğrudan varsayılan yazıcıya gönderir."],
+  ["#btnOnizKapat", "Kapat", "Önizlemeyi kapatır, hiçbir şey yazdırılmaz."],
   ["#liste", "Nöbet Listesi", "Tıkla: kişiyi seç. Sürükle: başka bir hücreyle yer değiştir; sürüklerken hücre yazısı renklenir: yeşil sorunsuz, sarı bir kişinin, turuncu iki kişinin isteği ya da ücret sırası bozulur, kırmızı kural bozulur (bırakırsan yine de taşınır, nöbet sabitlenir ve yeni liste yapılır). Sağ tık: hücreyi sabitle, Listeyi Oluştur onu korur. Uyarı renkli yazı istemediği güne ya da art arda nöbete düşmüş demek."],
   ["table.istek .ad-dgm", "İsim", "Tıkla: bütün ayı ✗ yap. Bir daha tıkla: geri al."],
   ["table.istek .hc", "İstek Kutusu", "Sol tık ✓, sağ tık ✗, aynı tık boşaltır. Sürükleyerek boya. Sol Ctrl + tık: o haftanın Pzt–Cum günleri ✗."],
@@ -1849,7 +1986,7 @@ const YARDIM = [
   ["#liste tr.hs", "Hafta Sonu", "Cumartesi 3, Pazar 2 ödeme puanı."],
   ["#baslik", "Liste Başlığı", "Yazdırılan kâğıdın başlığı; ay ve yıl kendiliğinden yazılır."],
   ["#onizYazi", "Önizleme", "Alternatifler sekmesinde bir satırın üstüne gelince o liste burada gösterilir. Tıklarsan seçilir; fareyi çekersen seçili listeye döner."],
-  ["#listePnl", "Nöbet Listesi", "Ayın nöbet listesi. Kutulardan elle değiştirebilir, Yazdır ya da Excel'e Kopyala ile dışarı alabilirsin."],
+  ["#listePnl", "Nöbet Listesi", "Ayın nöbet listesi. Kutulardan elle değiştirebilir, Baskı Önizleme ya da Excel'e Kopyala ile dışarı alabilirsin."],
   [".alt-puan", "Alternatif Puanı", "1000 en iyi listedir. Puan, adalet, istekler ve kurallara uyumun toplam ölçüsüdür; düşükse o liste daha çok sapma içerir."],
   [".sorun-liste li", "Sorun", "Kuralı çiğneyen bir durum. Kesin olmayan kurallar gerekirse çiğnenir ve burada yazar. Düzeltmek için istekleri gevşet, kuralı değiştir ya da Alternatifler'den başka liste seç."],
   ["#kisiEksi, #kisiArti", "Günlük Kişi", "Her gün kaç hemşirenin nöbet tutacağı. − ve + ile 1 ile 12 arasında ayarla. Değişince Listeyi Oluştur ile yenile."],
@@ -1878,7 +2015,7 @@ const ADIM = {
   cetele: "Bu bölümde kapsanan ayların toplam çetelesi görülür. FARK sütunu sıfırdan uzaksa Liste Hazırlama › İstekler'e geçip bu ayın listesini oluştur; program farkı kapatmaya çalışır.\n\nKâğıttaki çeteleyle uyuşmayan bir sayı varsa tablodaki gün sayısını doğrudan düzelt.",
   istek: "Bu bölümde istekler ve izinler girilir. Nöbet istenen günlere sol tıkla ✓, izinli ya da nöbet istenmeyen günlere sağ tıkla ✗ koy. Bitirince Sonraki: Özel Talepler düğmesine bas.",
   ozel: "Bu bölümde “şu kişilere en az 1 Perşembe” gibi talepler girilir. Gerekmiyorsa boş bırak. Bitirince Listeyi Oluştur'a bas.",
-  liste: "Bu bölümde liste ve çetele görülür. Listeyi kontrol et, gerekirse kutudan elle değiştir. Bitirince Yazdır'a ya da Excel'e Kopyala'ya bas.",
+  liste: "Bu bölümde liste ve çetele görülür. Listeyi kontrol et, gerekirse kutudan elle değiştir. Bitirince Baskı Önizleme'ye ya da Excel'e Kopyala'ya bas.",
   alt: "Bu bölümde denenen listelerin en iyileri sıralanır. Üstüne gelip önizle, beğendiğine tıklayıp seç, sonra Liste ve Çetele'ye dön.",
   analiz: "Bu bölümde herkesin nöbet ve puanı hedefle karşılaştırılır. Sapma büyükse Alternatifler'den başka bir liste seç.",
   sorun: "Bu bölümde kuralı çiğneyen nöbetler listelenir. Sorun yoksa yazdırmaya geç; varsa istekleri gevşetip Listeyi Oluştur'a bas.",
@@ -2084,7 +2221,7 @@ function uret(zorla) {
     ciz();
     if (!ALT.length) return;
     toast(ALTTOPLAM + " alternatiften en adili seçildi.", "success");
-    yol("#btnYazdir");
+    yol("#btnOnizle");
   }, e => {
     CALISIYOR = false;
     ilerlemeGoster(null);
@@ -2142,39 +2279,76 @@ function baskiHazirla() {
   if (eski) eski.remove();
   const b = el("div", { className: "baski", id: "baski" });
   b.setAttribute("aria-hidden", "true");
-  const ic = el("div", { className: "baski-ic" });
-  ic.append(el("h1", { className: "baski-baslik", textContent: $("#baslik").textContent }));
-  const sira = el("div", { className: "baski-sira" });
+  const sayfa = icerik => {
+    const s = el("div", { className: "baski-sayfa" });
+    const ic = el("div", { className: "baski-ic" });
+    ic.append(...icerik);
+    s.append(ic);
+    b.append(s);
+    return ic;
+  };
   const lt = $("#liste").cloneNode(true);
   lt.removeAttribute("id");
+  lt.style.zoom = ""; lt.style.width = ""; lt.style.height = "";
   lt.querySelectorAll("[id]").forEach(x => x.removeAttribute("id"));
   const kaynak = [...$("#liste").querySelectorAll("select")];
   [...lt.querySelectorAll("select")].forEach((s, i) => {
     const o = kaynak[i] && kaynak[i].selectedOptions[0];
     s.replaceWith(document.createTextNode(o ? o.textContent : ""));
   });
-  const ct = ceteleTablo(ayRows(), true, false);
+  const sira = el("div", { className: "baski-sira" });
   const sag = el("div", { className: "baski-cetele" });
-  sag.append(el("h2", { className: "baski-alt", textContent: "Çetele: " + AYLAR[V.ay - 1] + " " + V.yil }), ct);
+  sag.append(el("h2", { className: "baski-alt", textContent: "Çetele: " + AYLAR[V.ay - 1] + " " + V.yil }), ceteleTablo(ayRows(), true, false));
   sira.append(lt, sag);
-  ic.append(sira);
-  b.append(ic);
+  const ic1 = sayfa([el("h1", { className: "baski-baslik", textContent: $("#baslik").textContent }), sira]);
+  const gt = ceteleTablo(genelAyRows(genelSatir(true)), true, false, { gecBas: "FARK" });
+  const ic2 = sayfa([el("h1", { className: "baski-baslik", textContent: "Genel Çetele (" + AYLAR[V.ay - 1] + " " + V.yil + " dahil)" }), gt]);
   b.classList.add("olc");
   document.body.append(b);
-  const r = ic.getBoundingClientRect();
-  const w = Math.max(r.width, ic.scrollWidth), h = Math.max(r.height, ic.scrollHeight);
-  b.dataset.olcu = Math.round(w) + "x" + Math.round(h);
-  const z = Math.min(1, 1040 / w, 705 / h);
-  ic.style.zoom = String(Math.floor(z * 1000) / 1000);
+  b.dataset.olcu = [ic1, ic2].map(ic => {
+    const r = ic.getBoundingClientRect();
+    const w = Math.max(r.width, ic.scrollWidth), h = Math.max(r.height, ic.scrollHeight);
+    ic.style.zoom = String(Math.floor(Math.min(1, 1040 / w, 705 / h) * 1000) / 1000);
+    return Math.round(w) + "x" + Math.round(h);
+  }).join(" ");
   b.classList.remove("olc");
   return b;
 }
 
-$("#btnYazdir").onclick = async () => {
+async function yazdirGonder(hizli) {
   if (!L) return toast("Önce listeyi oluştur.", "warning");
   const b = baskiHazirla();
-  try { await W.yazdir(); } finally { b.remove(); }
+  try {
+    const ok = await W.yazdir(hizli);
+    if (hizli) toast(ok ? "Yazıcıya gönderildi." : "Hızlı yazdırma yapılamadı: varsayılan yazıcı yok ya da yanıt vermedi.", ok ? "success" : "warning");
+  } finally { b.remove(); }
+}
+
+function onizleKapat() {
+  $("#onizPanel").hidden = true;
+  $("#onizAlan").replaceChildren();
+  $("#btnOnizle").focus();
+}
+
+$("#btnOnizle").onclick = () => {
+  if (!L) return toast("Önce listeyi oluştur.", "warning");
+  const b = baskiHazirla();
+  const alan = $("#onizAlan");
+  alan.replaceChildren();
+  const kopya = b.cloneNode(true);
+  kopya.removeAttribute("id");
+  b.remove();
+  alan.append(kopya);
+  $("#onizPanel").hidden = false;
+  const z = Math.min(1, (alan.clientWidth - 24) / (277 / 25.4 * 96));
+  kopya.querySelectorAll(".baski-sayfa").forEach(s => { s.style.zoom = String(Math.floor(z * 1000) / 1000); });
+  $("#btnOnizYazdir").focus();
 };
+$("#btnHizli").onclick = () => yazdirGonder(true);
+$("#btnOnizYazdir").onclick = () => yazdirGonder(false);
+$("#btnOnizHizli").onclick = () => yazdirGonder(true);
+$("#btnOnizKapat").onclick = onizleKapat;
+$("#onizPanel").addEventListener("keydown", e => { if (e.key === "Escape") onizleKapat(); });
 $("#ipucuBar").onclick = () => { $("#ipucuBar").hidden = true; };
 
 (() => {
@@ -2224,6 +2398,11 @@ $("#ipucuBar").onclick = () => { $("#ipucuBar").hidden = true; };
     dugme.disabled = false;
     if (!r.ok) return sessiz ? null : toast("Güncelleme denetlenemedi: " + r.hata, "danger");
     if (!r.yeni) return sessiz ? null : toast((ET["update.current"] || "Güncel") + " (v" + dugme.textContent.replace(/^v/, "") + ")", "success");
+    if (sessiz && !AYAR.onayIste && (dokunuldu || performance.now() > 60000)) {
+      const s = await G.uygula(true);
+      if (s.ok) toast("Yeni sürüm v" + r.surum + " arka planda indirildi, program bir sonraki açılışta bu sürümle başlayacak.", "info", 6000);
+      return null;
+    }
     $("#gncBaslik").textContent = "Yeni sürüm hazır: v" + r.surum;
     $("#gncYazi").textContent = r.notlar || "Yeni sürüm indirilip kurulacak, program yeniden başlayacak.";
     panel.hidden = false;
@@ -2239,5 +2418,7 @@ $("#ipucuBar").onclick = () => { $("#ipucuBar").hidden = true; };
   dugme.onclick = () => denetle(false);
   $("#gncEvet").onclick = uygula;
   $("#gncSonra").onclick = kapat;
+  let dokunuldu = false;
+  ["pointerdown", "keydown"].forEach(o => document.addEventListener(o, () => { dokunuldu = true; }, { capture: true, once: true }));
   setTimeout(() => denetle(true), 2500);
 })();

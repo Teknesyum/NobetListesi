@@ -103,10 +103,10 @@ app.whenReady().then(() => {
   });
   ipcMain.on("pencere:kapat", e => { const w = hedef(e); if (w) w.close(); });
   ipcMain.on("pencere:ac", (e, u) => { if (/^https:\/\//.test(u)) shell.openExternal(u); });
-  ipcMain.handle("pencere:yazdir", e => new Promise(ok => {
+  ipcMain.handle("pencere:yazdir", (e, hizli) => new Promise(ok => {
     const w = hedef(e);
     if (!w) return ok(false);
-    w.webContents.print({ silent: false, printBackground: true, landscape: true, pageSize: "A4" }, s => ok(s));
+    w.webContents.print({ silent: !!hizli, printBackground: true, landscape: true, pageSize: "A4" }, s => ok(s));
   }));
   ipcMain.handle("pencere:dosyaYaz", async (e, { ad, metin, tur }) => {
     const w = hedef(e);
@@ -123,11 +123,12 @@ app.whenReady().then(() => {
       return { ok: true, yeni: b.yeni, surum: b.surum, notlar: b.notlar };
     } catch (err) { return { ok: false, hata: String(err && err.message || err) }; }
   });
-  ipcMain.handle("guncelle:uygula", async e => {
+  ipcMain.handle("guncelle:uygula", async (e, sessiz) => {
     if (!bekleyen) return { ok: false, hata: "Önce güncelleme denetlenmeli" };
     const w = hedef(e);
     try {
-      await guncelle.uygula(bekleyen, N, p => { if (w && !w.isDestroyed()) w.webContents.send("guncelle:ilerle", p); });
+      await guncelle.uygula(bekleyen, N, p => { if (!sessiz && w && !w.isDestroyed()) w.webContents.send("guncelle:ilerle", p); });
+      if (sessiz) return { ok: true, sessiz: true };
       setTimeout(() => { app.relaunch(); app.exit(0); }, 700);
       return { ok: true };
     } catch (err) { return { ok: false, hata: String(err && err.message || err) }; }

@@ -245,6 +245,19 @@ table.liste td.duz { color: var(--tk-text); font-weight: var(--tk-fw-semi); }
   appearance: none;
   cursor: pointer;
 }
+.sec-pop { display: flex; flex-direction: column; gap: var(--tk-sp-1); min-width: 0; }
+.sec-baslik { margin: 0; font-size: var(--tk-fs-2); font-weight: var(--tk-fw-semi); color: var(--tk-text); }
+.sec-liste { display: grid; grid-auto-flow: column; gap: 0 var(--tk-sp-2); }
+.sec-oge { display: flex; align-items: center; min-height: var(--tk-target-min); padding: 0 var(--tk-sp-2); font: inherit; font-size: var(--tk-fs-1); font-weight: var(--tk-fw-semi); text-align: left; white-space: nowrap; color: var(--tk-text); background: transparent; border: 0; border-radius: var(--tk-r); cursor: pointer; transition: background var(--tk-t-fast) var(--tk-e-out), color var(--tk-t-fast) var(--tk-e-out); }
+.sec-oge[data-yeni="1"] { margin-top: var(--tk-sp-1); }
+.sec-oge:hover, .sec-oge:focus-visible { background: var(--tk-surface); color: var(--tk-renk-2-text); }
+.sec-oge:hover .sec-ilk, .sec-oge:focus-visible .sec-ilk { color: inherit; }
+.sec-oge:active { background: var(--tk-surface); color: var(--tk-renk-1); }
+.sec-oge:disabled { color: var(--tk-disabled); cursor: not-allowed; }
+.sec-oge[aria-selected="true"] { color: var(--tk-renk-1); }
+.sec-oge[data-var="1"] { color: var(--tk-text-label); }
+.sec-ilk { color: var(--tk-renk-1); font-weight: var(--tk-fw-semi); transition: color var(--tk-t-fast) var(--tk-e-out); }
+.sec-ipucu { margin: 0; font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-text-label); }
 .sec:hover, .sec:focus-visible { background: var(--tk-surface); }
 .sec:active { background: var(--tk-surface); color: var(--tk-renk-1); }
 .sec[data-kotu="1"] { color: var(--tk-warning); }
@@ -308,10 +321,11 @@ table.cetele td { font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); col
 table.cetele th { padding: var(--tk-sp-1) var(--tk-sp-1); }
 table.cetele td.ad { white-space: nowrap; }
 table.cetele td.np { font-weight: var(--tk-fw-semi); white-space: nowrap; }
-table.cetele td .puan { color: var(--tk-renk-1); }
-table.cetele td .sayi + .puan { margin-left: var(--tk-sp-1); }
-table.cetele td[data-iyi="1"] .sayi { color: var(--tk-success); }
-table.cetele td.fark[data-iyi="1"] .puan { color: var(--tk-success); }
+.cetele-sek { display: flex; flex-wrap: wrap; gap: var(--tk-sp-1); min-width: 0; }
+.cetele-sek [aria-selected="true"] { border-color: var(--tk-renk-1); color: var(--tk-renk-1); }
+table.cetele td .sayi { color: var(--tk-renk-1); }
+table.cetele td .puan { color: var(--tk-success); }
+table.cetele td .ayrac { color: var(--tk-text-label); }
 table.cetele td.fark[data-kotu="1"] .puan { color: var(--tk-warning); }
 .yardim[data-iyi="1"] { color: var(--tk-success); }
 .yardim[data-kotu="1"] { color: var(--tk-warning); }
@@ -498,7 +512,14 @@ table.istek .ctrl { background-image: linear-gradient(var(--vurgu-3), var(--vurg
 
 .baski { display: none; }
 .baski.olc { display: block; position: fixed; left: 0; top: 0; visibility: hidden; width: max-content; }
+.baski.olc .baski-sayfa { display: block; width: max-content; }
 .baski-ic { width: max-content; }
+.onizle-kutu { width: min(72rem, calc(100% - 2 * var(--tk-sp-3))); max-height: calc(100% - 2 * var(--tk-sp-3)); min-height: 0; }
+.onizle-alan { display: flex; flex-direction: column; gap: var(--tk-sp-3); align-items: center; overflow: auto; min-height: 0; padding: var(--tk-sp-2); border: var(--tk-border-w) solid var(--tk-border); border-radius: var(--tk-r-box); }
+.onizle-alan .baski { display: block; }
+.onizle-alan .baski-sayfa { display: flex; align-items: center; justify-content: center; width: 277mm; height: 188mm; color-scheme: light; color: CanvasText; background: Canvas; overflow: hidden; }
+.onizle-alan .baski-sayfa * { color: CanvasText !important; }
+.onizle-alan .baski-sayfa table th, .onizle-alan .baski-sayfa table td { background: Canvas !important; }
 .baski-sira { display: flex; align-items: flex-start; gap: var(--tk-sp-3); }
 .baski-baslik { margin: 0 0 var(--tk-sp-2); text-align: center; font-size: var(--tk-fs-3); }
 .baski-alt { margin: 0 0 var(--tk-sp-1); font-size: var(--tk-fs-2); }
@@ -508,7 +529,9 @@ table.istek .ctrl { background-image: linear-gradient(var(--vurgu-3), var(--vurg
   :root { color-scheme: light; }
   body > .cerceve { display: none !important; }
   html, body { height: auto !important; min-height: 0 !important; }
-  .baski { display: flex; align-items: center; justify-content: center; width: 277mm; height: 188mm; color: CanvasText; background: Canvas; break-inside: avoid; overflow: hidden; }
+  .baski { display: block; }
+  .baski-sayfa { display: flex; align-items: center; justify-content: center; width: 277mm; height: 188mm; color: CanvasText; background: Canvas; break-inside: avoid; break-after: page; overflow: hidden; }
+  .baski-sayfa:last-child { break-after: auto; }
   .baski * { color: CanvasText !important; }
   .baski table th, .baski table td { color: CanvasText; background: Canvas !important; height: auto; }
   html, body { background: Canvas; color: CanvasText; overflow: visible; }
