@@ -245,6 +245,7 @@ table.liste td.duz { color: var(--tk-text); font-weight: var(--tk-fw-semi); }
   appearance: none;
   cursor: pointer;
 }
+.ad-girdi { width: 100%; min-width: 10rem; }
 .sec-pop { display: flex; flex-direction: column; gap: var(--tk-sp-1); min-width: 0; }
 .sec-baslik { margin: 0; font-size: var(--tk-fs-2); font-weight: var(--tk-fw-semi); color: var(--tk-text); }
 .sec-liste { display: grid; grid-auto-flow: column; gap: 0 var(--tk-sp-2); }
