@@ -1151,7 +1151,7 @@ function analizCiz() {
     const ist = hucre(a.istekVerilen + "/" + a.istek, a.istek ? (a.istekVerilen === a.istek ? "tamam" : "eksik") : "yok", a.istek > a.istekVerilen);
     if (a.istek && a.istekVerilen === a.istek) ist.dataset.iyi = "1";
     tr.append(ist);
-    tr.append(hucre(a.istemezIhlal + "/" + a.istemez, a.ardArda || a.perHs ? "ard arda " + a.ardArda + ", per-hs " + a.perHs : "temiz", a.istemezIhlal > 0 || a.ardArda > 0 || a.perHs > 0));
+    tr.append(hucre(a.istemezIhlal + "/" + a.istemez, a.ardArda || a.perHs ? "ard arda " + a.ardArda + ", per-hs " + a.perHs : "temiz", a.istemezIhlal > 0 || (a.ardArda > 0 && V.kural.onem.ardArda !== "kapali") || (a.perHs > 0 && V.kural.onem.sonraBos !== "kapali")));
     const gc = a.gecmis ? a.fark : null;
     tr.append(hucre(gc ? isr(-gc.n) : "—", gc ? "ödeme " + isr(-gc.p) : "kayıt yok", gc && Math.abs(gc.p) > FARK_ESIK));
     t.append(tr);
@@ -1645,10 +1645,8 @@ function kuralCiz() {
   ag.setAttribute("aria-label", "Gün ağırlığı");
   [["puan", "Ödeme Puanına Göre (Cum 2, Cmt 3, Paz 2, diğer 1)"], ["esit", "Tüm Günler Eşit"]].forEach(([v, m]) => ag.append(el("option", { value: v, textContent: m, selected: K.odemeModu === v })));
   ag.onchange = () => { K.odemeModu = ag.value; degis(); };
-  p.append(satir(
-    yd(anahtar(K.ardArda, "Art Arda Nöbet Yasak", v => { K.ardArda = v; degis(); }), "Art Arda Nöbet Yasak", "Açıkken kimseye iki gün üst üste nöbet yazılmaz. Kapalıyken yine de kaçınılır ama gerekirse yazılır."),
-    el("span", { className: "etiket", textContent: "Gün Ağırlığı" }), ag
-  ));
+  p.append(satir(el("span", { className: "etiket", textContent: "Gün Ağırlığı" }), ag));
+  p.append(yardim("Art arda nöbet ve diğer kuralların önemi Düşünme Kuralları sekmesinde."));
   p.append(baslik("Bu Günden Sonra Boş Kalsın", "h3"));
   const t = el("table", { className: "tablo" });
   const b = el("tr");
@@ -1681,10 +1679,104 @@ function kuralCiz() {
   p.append(t);
   const ekle = yd(el("button", { type: "button", className: "dgm", textContent: "Kural Ekle" }), "Kural Ekle", "Yeni bir “bu günden sonra boş kalsın” kuralı ekler. Varsayılan: Perşembe nöbetlerinden birinin ardından Cuma, Cumartesi, Pazar boş.");
   ekle.onclick = () => { K.sonraBos.push({ gun: 4, bos: [5, 6, 0], kapsam: "bir", kesin: false, acik: true }); degis(); };
-  const varsay = yd(el("button", { type: "button", className: "dgm", textContent: "Varsayılana Dön" }), "Varsayılana Dön", "Art arda yasağı, gün ağırlığını ve boş kalma kurallarını ilk hâline getirir: Perşembe nöbetlerinden birinin ardından Cumartesi ve Pazar boş. Gruplar ve İstekler Zorunlu değişmez.");
-  varsay.onclick = () => { Object.assign(K, { ardArda: MOTOR.KURAL.ardArda, odemeModu: MOTOR.KURAL.odemeModu, sonraBos: kopya(MOTOR.KURAL.sonraBos) }); degis(); };
+  const varsay = yd(el("button", { type: "button", className: "dgm", textContent: "Varsayılana Dön" }), "Varsayılana Dön", "Gün ağırlığını ve boş kalma kurallarını ilk hâline getirir: Perşembe nöbetlerinden birinin ardından Cumartesi ve Pazar boş. Gruplar ve İstekler Zorunlu değişmez.");
+  varsay.onclick = () => { Object.assign(K, { odemeModu: MOTOR.KURAL.odemeModu, sonraBos: kopya(MOTOR.KURAL.sonraBos) }); degis(); };
   p.append(satir(ekle, varsay));
   p.append(yardim("Örnek: Perşembe → Cmt, Paz işaretli ve \u201cPerşembe nöbetlerinden biri\u201d seçiliyse, herkesin tuttuğu perşembelerden en az birinin ardından hafta sonu boş kalır. \u201cHer Perşembe nöbeti\u201d seçilirse her perşembe nöbetinden sonra hafta sonu boş kalır. Kesin işaretli değilse kural güçlü bir tercihtir, gerekirse çiğnenir ve Sorunlar'da yazar. Gruplar ve aynı gün kuralları İleri Seviye'de."));
+}
+
+const DK_DUZEY = [
+  ["kapali", "Kapalı", "Bu kural hiç hesaba katılmaz; Sorunlar'da ve gün nedenlerinde de yazmaz."],
+  ["dusuk", "Düşük", "Zayıf tercih: başka kurallarla çatışınca ilk bu gevşer."],
+  ["normal", "Normal", "Programın her zamanki ağırlığı."],
+  ["yuksek", "Yüksek", "Üç kat ağırlık: ancak başka yol kalmazsa çiğnenir."],
+  ["kesin", "Kesin", "En yüksek ağırlık: liste başka türlü kurulamıyorsa çiğnenir, o zaman da Sorunlar'da yazar."]
+];
+const DK = [
+  ["Sayı ve Puan", [
+    ["nobetEsit", "Nöbet Sayısı Eşit", "Herkesin bu ayki nöbet sayısı payına göre eşit tutulur."],
+    ["puanEsit", "Ödeme Puanı Eşit", "Cuma, Cumartesi, Pazar ve tatil puanları payına göre eşit dağıtılır. Gün Ağırlığı “Tüm Günler Eşit” ise etkisi yoktur."],
+    ["ucretSira", "Ücret Sırası Bozulmasın", "Daha çok nöbet tutan kişi, daha az tutandan az puan almaz."],
+    ["kesinSayi", "Verilen Nöbet Sayısı Tutsun", "Kadro'da bir kişiye bu ay için sayı yazıldıysa ona tam o kadar nöbet yazılır."]
+  ]],
+  ["Gün Türü Dengesi", [
+    ["gunPzt", "Pazartesi Eşit Dağıt", "Pazartesi nöbetleri kişiler arasında eşit dağıtılır."],
+    ["gunSal", "Salı Eşit Dağıt", "Salı nöbetleri kişiler arasında eşit dağıtılır."],
+    ["gunCar", "Çarşamba Eşit Dağıt", "Çarşamba nöbetleri kişiler arasında eşit dağıtılır."],
+    ["gunHi", "Hafta İçi Toplamı Eşit", "Pazartesi, Salı ve Çarşamba nöbetlerinin toplamı eşit dağıtılır."],
+    ["gunPer", "Perşembe Eşit Dağıt", "Perşembe nöbetleri kişiler arasında eşit dağıtılır."],
+    ["gunCum", "Cuma Eşit Dağıt", "Cuma nöbetleri kişiler arasında eşit dağıtılır."],
+    ["gunCmt", "Cumartesi Eşit Dağıt", "Cumartesi nöbetleri kişiler arasında eşit dağıtılır."],
+    ["gunPaz", "Pazar ve Tatil Eşit Dağıt", "Pazar ve resmi tatil nöbetleri kişiler arasında eşit dağıtılır."]
+  ]],
+  ["Dinlenme", [
+    ["ardArda", "Art Arda Nöbet Yok", "Kimseye iki gün üst üste nöbet yazılmaz. Kesin'de hiç yazılmaz, diğer düzeylerde yalnız kaçınılır."],
+    ["araGun", "Bir Gün Arayla Nöbetten Kaçın", "Nöbetler arasında tek gün boşluk kalmasından kaçınılır."],
+    ["sonraBos", "Bu Günden Sonra Boş Kalsın", "Kurallar sekmesindeki boş kalma kuralları. Kapalıyken hepsi, kesin işaretli olanlar dahil, yok sayılır."]
+  ]],
+  ["İstekler", [
+    ["istek", "✓ İstekler", "İstenen günlerin verilmesi. Kesin için İstekler sekmesinde İstekler Zorunlu'yu aç."],
+    ["istemez", "✗ İstemezler", "İstenmeyen günlere yazılmaması. Kesin için İstekler Zorunlu'yu aç."],
+    ["bagli", "Bağlı Gruplar", "Alt (Sol) ile bağlanan “bu günlerden biri” istekleri ve kaçınmaları."],
+    ["ozel", "Özel Talepler", "“En az N Perşembe” gibi talepler. Nöbet devri bundan etkilenmez."]
+  ]],
+  ["Gruplar", [
+    ["grupSinir", "Aynı Gün Sınırı", "Bir gruptan aynı güne en fazla kaç kişi yazılacağı. Grupta Kesin işaretliyse her düzeyde kesindir."],
+    ["grupIliski", "Birlikte / Ayrı", "Gruplar arası aynı gün olsun ya da olmasın kuralları. Kuralda Kesin işaretliyse her düzeyde kesindir."]
+  ]]
+];
+
+function dusunmeCiz() {
+  const p = $("#p-dusunme");
+  p.replaceChildren();
+  const K = V.kural;
+  const O = K.onem;
+  const vars = id => MOTOR.MEKANIK.find(m => m.id === id).varsayilan || "normal";
+  const degis = () => { V.kural = MOTOR.kuralNorm(K, V.kisiler); degisti(); dusunmeCiz(); };
+  const ids = MOTOR.MEKANIK.map(m => m.id);
+  const nDeg = ids.filter(id => O[id] !== vars(id)).length;
+  const nKap = ids.filter(id => O[id] === "kapali").length;
+  p.append(baslik("Düşünme Kuralları"));
+  p.append(yardim("Program listeyi kurarken bu kuralları tartar. Her satırda önemi seç: Kapalı kuralı hiç düşünmez, Düşük az önemser, Normal her zamanki gibi, Yüksek üç kat önemser, Kesin ancak başka yol yoksa çiğner. Değiştirdikten sonra Listeyi Oluştur'a bas."));
+  const ozet = el("span", { className: "dk-ozet", textContent: nDeg ? nDeg + " kural değiştirildi" + (nKap ? " · " + nKap + " kapalı" : "") : "Hepsi varsayılan" });
+  ozet.setAttribute("aria-live", "polite");
+  const varsay = yd(el("button", { type: "button", className: "dgm", textContent: "Varsayılana Dön", disabled: !nDeg }), "Varsayılana Dön", "Bütün düşünme kurallarını ilk hâline getirir: art arda nöbet Kesin, diğerleri Normal. Kurallar ve İleri Seviye sekmelerindeki ayarlar değişmez.");
+  varsay.onclick = () => { K.onem = {}; K.ardArda = true; degis(); };
+  p.append(satir(yd(ozet, "Değişiklik Özeti", "Varsayılandan farklı seçilmiş kural sayısı ve bunlardan kaçının kapalı olduğu. Değiştirilen satırlar çerçeveyle gösterilir."), varsay));
+  const iz = el("div", { className: "dk-izgara" });
+  const satirYap = (id, ad, ac, kilit) => {
+    const l = kilit ? "kesin" : O[id];
+    const r = el("div", { className: "dk-satir" });
+    r.dataset.l = l;
+    if (!kilit && l !== vars(id)) r.dataset.degisik = "1";
+    const m = el("div", { className: "dk-yazi" });
+    m.append(el("div", { className: "dk-ad", textContent: ad }), el("div", { className: "dk-ac", textContent: ac }));
+    const sec = el("div", { className: "dk-sec" });
+    sec.setAttribute("role", "group");
+    sec.setAttribute("aria-label", ad + " önemi");
+    const mk = kilit ? null : MOTOR.MEKANIK.find(x => x.id === id);
+    for (const [k, kad, kac] of DK_DUZEY) {
+      const yok = kilit || (k === "kesin" && mk.kesin === null);
+      const b = el("button", { type: "button", className: "cip", textContent: kad, disabled: yok });
+      b.dataset.l = k;
+      b.setAttribute("aria-pressed", String(l === k));
+      b.onclick = () => { O[id] = k; if (id === "ardArda") K.ardArda = k !== "kapali"; degis(); };
+      yd(b, ad + ": " + kad, kilit ? "İzin günleri her zaman kesindir; izinli kişiye nöbet yazılmaz. Değiştirilemez." : yok ? "Bu kural için Kesin yok. " + ac : kac + "\n\n" + ac + (k === vars(id) ? "\n\nBu düzey varsayılandır." : ""));
+      sec.append(b);
+    }
+    r.append(yd(m, ad, ac + "\n\nŞu an: " + DK_DUZEY.find(x => x[0] === l)[1] + (kilit ? "" : ", varsayılan: " + DK_DUZEY.find(x => x[0] === vars(id))[1] + ".")), sec);
+    return r;
+  };
+  for (const [kb, sat] of DK) {
+    const k = el("div", { className: "kart dk-kart" });
+    const nk = sat.filter(([id]) => O[id] !== vars(id)).length;
+    const bs = baslik(kb + (nk ? " · " + nk + " değişik" : ""), "h3");
+    k.append(bs);
+    for (const [id, ad, ac] of sat) k.append(satirYap(id, ad, ac));
+    if (kb === "İstekler") k.append(satirYap("izin", "İzin Günleri", "İzinli ya da bütün ay ✗ olan kişiye nöbet yazılmaz. Her zaman kesin.", true));
+    iz.append(k);
+  }
+  p.append(iz);
 }
 
 function ileriCiz() {
@@ -2057,7 +2149,7 @@ function hakkindaCiz() {
   p.append(k);
 }
 
-const ANA = { cetele: ["cetele"], hazir: ["istek", "ozel", "liste", "alt", "analiz", "sorun"], ayar: ["kadro", "kural", "ileri", "gecmis", "genel", "hakkinda"] };
+const ANA = { cetele: ["cetele"], hazir: ["istek", "ozel", "liste", "alt", "analiz", "sorun"], ayar: ["kadro", "kural", "dusunme", "ileri", "gecmis", "genel", "hakkinda"] };
 const SON_ALT = { cetele: "cetele", hazir: "istek", ayar: "kadro" };
 const ANA_AD = Object.keys(ANA);
 const anaBul = ad => ANA_AD.find(a => ANA[a].includes(ad)) || "ayar";
@@ -2156,7 +2248,8 @@ const YARDIM = [
   ["#sk-sorun, #p-sorun", "Sorunlar", "Kuralı çiğneyen ya da verilemeyen her şey. Sorun varsa sekme turuncu olur ve yanında sayısı görünür."],
   [".sekme-ok", "Adım Ayracı", "Sekmeler arasındaki ok yalnız sırayı gösterir; tıklanmaz."],
   ["#sk-kadro, #p-kadro", "Kadro", "Herkesin nöbet ve ödeme puanı payı."],
-  ["#sk-kural, #p-kural", "Kurallar", "Art arda nöbet, perşembe sonrası boş günler, gün ağırlığı, isteklerin zorunluluğu."],
+  ["#sk-kural, #p-kural", "Kurallar", "Perşembe sonrası boş günler ve gün ağırlığı."],
+  ["#sk-dusunme, #p-dusunme", "Düşünme Kuralları", "Programın listeyi kurarken tarttığı her kural tek satırda: Kapalı, Düşük, Normal, Yüksek ya da Kesin seç. Örneğin Çarşamba eşit dağıtımını kapatabilir ya da Yüksek yapabilirsin."],
   ["#sk-ileri, #p-ileri", "İleri Seviye", "Gruplar ve aynı gün olsun / olmasın kuralları."],
   ["#sk-gecmis, #p-gecmis", "Geçmiş", "Önceki ayların çetelesi; hangi ayların hesaba katılacağı."],
   ["#sk-genel, #p-genel", "Genel", "Güncelleme, Yeşil Yol, rehber, resmi tatil, alternatif sayısı."],
@@ -2202,6 +2295,7 @@ const ADIM = {
   sorun: "Bu bölümde kuralı çiğneyen nöbetler listelenir. Sorun yoksa yazdırmaya geç; varsa istekleri gevşetip Listeyi Oluştur'a bas.",
   kadro: "Bu bölümde hemşire adları ve nöbet payları girilir. Bitirince Liste Hazırlama › İstekler'e geç.",
   kural: "Bu bölümde nöbet kuralları ayarlanır. Bir kuralı değiştirdiysen Listeyi Oluştur'a basıp listeyi yenile.",
+  dusunme: "Bu bölümde programın tarttığı kuralların önemi seçilir. Bir satırda Kapalı, Düşük, Normal, Yüksek ya da Kesin'e bas, sonra Listeyi Oluştur'a basıp listeyi yenile.",
   ileri: "Bu bölümde gruplar kurulur. Grup Ekle'ye bas, gruptaki kişilerin adına tıkla, aynı gün olsun ya da olmasın kuralını seç.",
   gecmis: "Bu bölümde önceki ayların nöbetleri görülür. Hesaba katılacak ayları seç; o aylardaki fazlalık ve eksiklik yeni listede dengelenir.",
   genel: "Bu bölümde program ayarları yapılır. Her değişiklik hemen kaydedilir.",
@@ -2342,6 +2436,7 @@ function hepsiniCiz() {
   ozelCiz();
   kadroCiz();
   kuralCiz();
+  dusunmeCiz();
   ileriCiz();
   gecmisCiz();
   genelCiz();

@@ -417,6 +417,29 @@ table.istek .ctrl { background-image: linear-gradient(var(--vurgu-3), var(--vurg
 .iki-liste h3 { margin: 0 0 var(--tk-sp-1); font-size: var(--tk-fs-1); line-height: var(--tk-lh-heading); color: var(--tk-text-label); font-weight: var(--tk-fw-semi); }
 .etiket { font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-text-label); white-space: nowrap; }
 
+.dk-izgara { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr)); gap: var(--tk-sp-3); align-items: start; }
+.dk-kart .bolum-baslik { margin: 0; }
+.dk-satir { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--tk-sp-2); padding: var(--tk-sp-2); border-radius: var(--tk-r); min-width: 0; }
+.dk-satir[data-degisik="1"] { box-shadow: inset 0 0 0 var(--tk-border-w) var(--tk-renk-1); }
+.dk-yazi { flex: 1 1 14rem; min-width: 0; }
+.dk-ad { font-weight: var(--tk-fw-semi); line-height: var(--tk-lh-heading); }
+.dk-ac { font-size: var(--tk-fs-1); line-height: var(--tk-lh-body); color: var(--tk-text-label); }
+.dk-satir[data-l="kapali"] .dk-ad { color: var(--tk-text-label); text-decoration: line-through; }
+.dk-sec { display: flex; flex-wrap: wrap; gap: var(--tk-sp-1); min-width: 0; }
+.dk-sec .cip:disabled { color: var(--tk-disabled); cursor: not-allowed; }
+.dk-sec .cip:disabled:hover, .dk-sec .cip:disabled:focus-visible { background: transparent; }
+.dk-sec .cip[aria-pressed="true"][data-l="kapali"] { background: var(--tk-text-label); color: var(--tk-surface); }
+.dk-sec .cip[aria-pressed="true"][data-l="dusuk"] { background: var(--tk-renk-3); color: var(--tk-on-renk-3); }
+.dk-sec .cip[aria-pressed="true"][data-l="normal"] { background: var(--tk-renk-2); color: var(--tk-on-renk-2); }
+.dk-sec .cip[aria-pressed="true"][data-l="yuksek"] { background: var(--tk-renk-1); color: var(--tk-on-renk-1); }
+.dk-sec .cip[aria-pressed="true"][data-l="kesin"] { background: var(--tk-danger); color: var(--tk-on-danger); }
+.dk-sec .cip { transition: background-color var(--tk-t-fast) var(--tk-e-out), color var(--tk-t-fast) var(--tk-e-out); }
+.dk-sec .cip:active { background: var(--tk-glass); color: var(--tk-renk-1); }
+.dk-sec .cip[aria-pressed="true"] { font-weight: var(--tk-fw-semi); }
+.dk-sec .cip[aria-pressed="true"]:not(:disabled):hover, .dk-sec .cip[aria-pressed="true"]:focus-visible { text-decoration: underline; }
+.dk-sec .cip[aria-pressed="true"]:active { text-decoration: none; }
+.dk-sec .cip[aria-pressed="true"]:disabled { cursor: not-allowed; }
+.dk-ozet { font-size: var(--tk-fs-1); color: var(--tk-text-label); }
 .gecmis-iki { display: grid; grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr); gap: var(--tk-sp-3); align-items: start; }
 .ay-liste { display: grid; gap: var(--tk-sp-1); }
 .ay-satir { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--tk-sp-1); border-radius: var(--tk-r); }
