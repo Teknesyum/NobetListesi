@@ -402,6 +402,8 @@ table.istek .ctrl { background-image: linear-gradient(var(--vurgu-3), var(--vurg
 .hc:active { color: var(--tk-renk-1); }
 .hc[data-d="1"] { color: var(--tk-success); background: color-mix(in srgb, var(--tk-success) 18%, transparent); }
 .hc[data-d="2"] { color: var(--tk-warning); }
+.bag-no { font-size: var(--tk-fs-1); color: var(--tk-renk-1); vertical-align: super; margin-left: var(--tk-sp-1); }
+.hc[data-bag="1"] { box-shadow: inset 0 0 0 1px var(--tk-renk-1); }
 
 .kart { display: grid; gap: var(--tk-sp-2); padding: var(--tk-sp-3); border-radius: var(--tk-r-box); background: var(--tk-surface); min-width: 0; }
 .kart[data-kapali="1"] > :not(:first-child) { opacity: 0.55; }

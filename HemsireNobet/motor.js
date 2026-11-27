@@ -232,9 +232,27 @@
     const nbE = v.kisiler.map((k, i) => (tumIzin[i] ? 0 : nb(k) * musait[i]));
     const sn = nbE.reduce((a, x) => a + x, 0) || 1;
     const pay = kural.dagitim === "oran" ? null : paylas(v, grupSay, ag, tumIzin, musait);
-    const nTaban = pay ? pay.n : nbE.map((x) => (toplam * x) / sn);
-    const pTaban = pay ? pay.p : nbE.map((x) => (toplamOde * x) / sn);
-    const gTaban = pay ? pay.g : nbE.map((x) => grupSay.map((c) => (c * x) / sn));
+    const nTaban = (pay ? pay.n : nbE.map((x) => (toplam * x) / sn)).slice();
+    const pTaban = (pay ? pay.p : nbE.map((x) => (toplamOde * x) / sn)).slice();
+    const gTaban = (pay ? pay.g : nbE.map((x) => grupSay.map((c) => (c * x) / sn))).map((b) => b.slice());
+    const kesin = pay ? pay.kesin.slice() : v.kisiler.map(() => null);
+    const adIdx = new Map(v.kisiler.map((k, i) => [k.ad, i]));
+    const devir = [];
+    for (const r of v.ozel || []) {
+      if (!r || r.acik === false || r.tur !== "devir") continue;
+      const x = adIdx.get(r.alan), y = adIdx.get(r.veren);
+      if (x === undefined || y === undefined || x === y || tumIzin[x]) continue;
+      const z = Math.min(sinir(Math.round(+r.sayi) || 0, 0, 31), nTaban[y]);
+      if (!(z > 0)) continue;
+      const f = nTaban[y] ? z / nTaban[y] : 0;
+      const dg = gTaban[y].map((c) => c * f);
+      const dp = dg.reduce((a, c, q) => a + c * ag[q], 0);
+      for (let q = 0; q < 5; q++) { gTaban[y][q] -= dg[q]; gTaban[x][q] += dg[q]; }
+      nTaban[y] -= z; nTaban[x] += z; pTaban[y] -= dp; pTaban[x] += dp;
+      if (kesin[y] !== null) kesin[y] = Math.max(0, kesin[y] - Math.round(z));
+      if (kesin[x] !== null) kesin[x] += Math.round(z);
+      devir.push({ x, y, z, istenen: Math.round(+r.sayi) || 0 });
+    }
     const dev = v.kisiler.map(() => ({ n: 0, p: 0, g: [0, 0, 0, 0, 0] }));
     const gec = gecmisKullan === false || v.yalniz ? null : v.gecmis;
     if (gec) v.kisiler.forEach((k, i) => {
@@ -246,7 +264,6 @@
     });
     const devHam = dev.map((x) => ({ n: x.n, p: x.p, g: x.g.slice() }));
     const pd = toplam ? toplamOde / toplam : 1;
-    const kesin = pay ? pay.kesin : v.kisiler.map(() => null);
     dev.forEach((x, i) => {
       const s = Math.min(1, Math.abs(x.n) > 1 ? 1 / Math.abs(x.n) : 1, Math.abs(x.p) > pd ? pd / Math.abs(x.p) : 1);
       x.n *= s;
@@ -265,15 +282,32 @@
     });
     const istemez = v.kisiler.map((k) => new Set(k.istemiyor || []));
     const ister = v.kisiler.map((k) => new Set(k.istiyor || []));
+    const bagIst = v.kisiler.map(() => []);
+    const bagIsm = v.kisiler.map(() => []);
+    v.kisiler.forEach((k, i) => {
+      for (const b of k.bag || []) {
+        const gl = [...new Set((b.gunler || []).map(Number))].filter((d) => d >= 1 && d <= G).sort((x, y) => x - y);
+        if (b.tur === "ist") {
+          const s = gl.filter((d) => ister[i].has(d) && !yok[i].has(d));
+          if (s.length < 2) continue;
+          s.forEach((d) => ister[i].delete(d));
+          bagIst[i].push(s);
+        } else if (b.tur === "ism") {
+          const s = gl.filter((d) => istemez[i].has(d));
+          if (s.length < 2 || s.some((d) => yok[i].has(d))) continue;
+          s.forEach((d) => istemez[i].delete(d));
+          bagIsm[i].push(s);
+        }
+      }
+    });
     const onceki = new Set(v.onceki || []);
     const zor = !!v.zorunlu;
     const carpan = v.kisiler.map((k) => (kural.istekDenge && v.istekCarpan && v.istekCarpan[k.ad] ? sinir(+v.istekCarpan[k.ad] || 1, 0.8, 1.2) : 1));
-    const agIster = v.kisiler.map((k, i) => (carpan[i] * (zor ? 2000 : 120)) / Math.max(1, ister[i].size));
+    const agIster = v.kisiler.map((k, i) => (carpan[i] * (zor ? 2000 : 120)) / Math.max(1, ister[i].size + bagIst[i].length));
     const agIstemez = carpan.map((c) => c * (zor ? 1000 : 400));
-    const adIdx = new Map(v.kisiler.map((k, i) => [k.ad, i]));
     const oz = v.kisiler.map(() => []);
     for (const r of v.ozel || []) {
-      if (!r || r.acik === false) continue;
+      if (!r || r.acik === false || r.tur === "devir") continue;
       const w = +r.gun === PAKET ? PAKET : ((+r.gun % 7) + 7) % 7;
       const enAz = sinir(Math.round(+r.enAz) || 0, 0, 6);
       if (!enAz) continue;
@@ -299,7 +333,7 @@
       kural, ag, sonra: sk.s, sonraBir: sk.bir, ard: kural.ardArda ? ZOR : 0, wP: kural.odemeModu === "esit" ? 0 : pay ? 8 : 2, wN: pay ? 3 : 6, paylasim: pay,
       yayIdx: pay ? v.kisiler.map((k, i) => i).filter((i) => !tumIzin[i] && !pay.az.includes(i)) : null,
       n, G, toplam, toplamOde, hedef, odeme, beklenen, yok, istemez, ister, onceki, grp, dev, devHam, kesin, musait, nTaban, pTaban, agIster, tp, tipBek, wd,
-      tumIzin, carpan, oz, gruplar: gAc, uy, gLim, gW, rel, gAcik,
+      tumIzin, carpan, oz, gruplar: gAc, uy, gLim, gW, rel, gAcik, bagIst, bagIsm, devir,
       agIstemez,
       perHs: zor ? 200 : 80,
       ozW: zor ? 5000 : 2500
@@ -353,6 +387,8 @@
       } else if (ister.has(d)) c += h.agIster[p];
     }
     if (ws) for (const [w, enAz] of oz) if (ws[w] < enAz) c += h.ozW * (enAz - ws[w]);
+    for (const s of h.bagIst[p]) if (!s.some((d) => gun[d])) c += h.agIster[p];
+    for (const s of h.bagIsm[p]) if (s.every((d) => gun[d])) c += h.agIstemez[p];
     for (const r of h.sonraBir) if (birBak(r, gun)) c += r.kesin ? ZOR : h.perHs;
     c += h.wN * (say - h.hedef[p]) ** 2;
     if (h.kesin[p] !== null) c += KESIN * Math.abs(say - h.kesin[p]);
@@ -395,7 +431,9 @@
         if (h.yok[p].has(d) || (h.ard && son[p] === d - 1)) continue;
         let s = (say[p] - h.hedef[p] * (d / G)) * 4 + R() * 6;
         if (h.istemez[p].has(d)) s += v.zorunlu ? 5000 : 50;
-        if (h.ister[p].has(d)) s -= (v.zorunlu ? 5000 : 60) / Math.max(1, h.ister[p].size);
+        if (h.ister[p].has(d)) s -= (v.zorunlu ? 5000 : 60) / Math.max(1, h.ister[p].size + h.bagIst[p].length);
+        for (const g of h.bagIst[p]) if (g.includes(d) && !g.some((e) => e < d && a[e] && a[e].includes(p))) s -= (v.zorunlu ? 5000 : 60) / Math.max(1, h.ister[p].size + h.bagIst[p].length) / (1 + g.filter((e) => e > d).length);
+        for (const g of h.bagIsm[p]) if (g.includes(d) && g[g.length - 1] === d && g.every((e) => e === d || (a[e] && a[e].includes(p)))) s += v.zorunlu ? 5000 : 50;
         if (d - son[p] === 2) s += 2;
         if (blok[p][d]) s += blok[p][d];
         for (const [w, enAz] of h.oz[p]) {
@@ -604,7 +642,10 @@
         for (let d = 1; d <= G; d++) if (gun[p][d]) { ws[h.wd[d]]++; if (h.wd[d] === 5 && d + 2 <= G && gun[p][d + 2]) ws[PAKET]++; }
         for (const [w, enAz] of h.oz[p]) if (ws[w] < enAz) sorun.push(v.kisiler[p].ad + ": özel talep en az " + enAz + " " + (w === PAKET ? "cuma + pazar paketi" : GUN[w].toLocaleLowerCase("tr")) + ", verilen " + ws[w]);
       }
-      const ist = new Set(v.kisiler[p].istiyor);
+      const ist = h.ister[p];
+      const gAd = (s) => s.slice(0, -1).join(", ") + " ya da " + s[s.length - 1];
+      for (const s of h.bagIst[p]) if (!s.some((d) => gun[p][d])) sorun.push(v.kisiler[p].ad + ": " + gAd(s) + ". günden biri istendi, hiçbiri verilmedi");
+      for (const s of h.bagIsm[p]) if (s.every((d) => gun[p][d])) sorun.push(v.kisiler[p].ad + ": " + gAd(s) + ". günden biri boş istendi, hepsine yazılmış");
       for (const d of ist) {
         if (gun[p][d]) continue;
         const ad = v.kisiler[p].ad;
@@ -620,6 +661,7 @@
     for (let d = 1; d <= G; d++) {
       let ister = 0;
       for (let p = 0; p < h.n; p++) if (h.ister[p].has(d)) ister++;
+
       if (ister > v.kisi) sorun.push(d + ". gün: " + ister + " kişi istiyor, günlük kontenjan " + v.kisi + ", hepsi verilemez");
       if (h.gAcik) {
         const c = gunSay(h, a[d]);
@@ -661,17 +703,18 @@
       }
       for (const r of h.sonraBir) if (birBak(r, gun[p])) perHs++;
       const ist = [...h.ister[p]];
-      const verilen = ist.filter((d) => gun[p][d]).length;
+      const verilen = ist.filter((d) => gun[p][d]).length + h.bagIst[p].filter((s) => s.some((d) => gun[p][d])).length;
       const istemez = [...h.istemez[p]];
-      const ihlal = istemez.filter((d) => gun[p][d]).length;
+      const ihlal = istemez.filter((d) => gun[p][d]).length + h.bagIsm[p].filter((s) => s.every((d) => gun[p][d])).length;
       const gec = (v.gecmis && v.gecmis[k.ad]) || null;
       return {
         ad: k.ad, nobet: say, nobetHedef: h.hedef[p], nobetAsil: nb(k),
         odeme: pay, odemeHedef: h.odeme[p], odemeAsil: od(k),
         grup: gs, grupBeklenen: h.beklenen[p], tip: ts, tipBeklenen: h.tipBek[p], hg, tumIzin: h.tumIzin[p],
         gruplar: h.uy[p].map((i) => h.gruplar[i].ad),
-        istek: ist.length, istekVerilen: verilen,
-        istemez: istemez.length, istemezIhlal: ihlal,
+        istek: ist.length + h.bagIst[p].length, istekVerilen: verilen,
+        istemez: istemez.length + h.bagIsm[p].length, istemezIhlal: ihlal,
+        devir: h.devir.filter((r) => r.x === p || r.y === p).map((r) => v.kisiler[r.y].ad + " → " + v.kisiler[r.x].ad + ", " + r.z + " nöbet"),
         izin: (k.izin || []).length, ardArda, perHs,
         gecmis: gec, fark: { n: -h.devHam[p].n, p: -h.devHam[p].p }, buAy: { n: -h.dev[p].n, p: -h.dev[p].p }, kesin: h.kesin[p], musait: h.musait[p]
       };
@@ -702,6 +745,7 @@
         if (iste) n.push(iste + " " + ad + " için istiyor (✓)");
         for (const [x, enAz] of h.oz[p]) if (x === w || (x === PAKET && (w === 5 || w === 0))) n.push("özel talep: en az " + enAz + (x === PAKET ? " cuma + pazar paketi" : " " + ad));
         if (h.kesin[p] !== null) n.push("bu ay " + h.kesin[p] + " nöbet istedi, ucuz günler önce düştü");
+        for (const r of h.devir) if (r.x === p || r.y === p) n.push("nöbet devri: " + v.kisiler[r.y].ad + " → " + v.kisiler[r.x].ad + ", " + r.z + " nöbet");
         if (h.musait[p] < 1) n.push("uzun izin, payı müsait günlere göre küçüldü");
         const gd = h.devHam[p].g[q];
         if (gd >= 0.5) n.push("geçmişte bu tür günden " + gd.toFixed(1).replace(".", ",") + " fazla tutmuş");
@@ -736,9 +780,11 @@
       } else if (h.ister[p].has(d)) istek++;
     }
     for (const r of h.sonraBir) if (birBak(r, gun)) kural++;
+    for (const s of h.bagIst[p]) if (!s.some((d) => gun[d])) istek++;
+    for (const s of h.bagIsm[p]) if (s.every((d) => gun[d])) istek++;
     if (h.oz[p].length) {
-      const ws = [0, 0, 0, 0, 0, 0, 0];
-      for (let d = 1; d <= h.G; d++) if (gun[d]) ws[h.wd[d]]++;
+      const ws = [0, 0, 0, 0, 0, 0, 0, 0];
+      for (let d = 1; d <= h.G; d++) if (gun[d]) { ws[h.wd[d]]++; if (h.wd[d] === 5 && d + 2 <= h.G && gun[d + 2]) ws[PAKET]++; }
       for (const [w, enAz] of h.oz[p]) if (ws[w] < enAz) istek += enAz - ws[w];
     }
     return { kural, istek };
